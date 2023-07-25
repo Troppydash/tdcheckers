@@ -58,6 +58,7 @@ namespace checkers
 
 	// return the string representation of the state
 	std::string state_repr(state s);
+	state state_flip(state s);
 
 
 	struct move
@@ -145,7 +146,7 @@ namespace checkers
 		std::vector<move> compute_moves(state turn) const;
 
 		// performs the given move based on the current player, returns a new board where the move is performed
-		board perform_move(checkers::move &move, state turn) const;
+		board perform_move(const checkers::move &move, state turn) const;
 
 		// returns the board state given the current player turn
 		// note: this does not handle drawing yet

@@ -2,25 +2,11 @@
 #include "checkers.h"
 
 #include "tester.h"
+#include "explorer.h"
 
 
-
-void playgame()
+void playgame(checkers::board board, checkers::state turn)
 {
-	checkers::state turn = checkers::state::RED;
-
-	const char initial[] =
-		". O . . . . . ."
-		". . . . . . . ."
-		". . . . . . . ."
-		". . . . . . . ."
-		". . . . . . . ."
-		". . o . o . o ."
-		". o . o . o . o"
-		"o . o . o . o .";
-	std::string position(initial);
-	checkers::board board{initial};
-
 	while (true)
 	{
 		// display board
@@ -118,28 +104,78 @@ void playgame()
 
 }
 
+
+void test_eval()
+{
+	checkers::state turn = checkers::state::RED;
+
+	const char initial[] =
+		". . . . . . . ."
+		". . O . . . . ."
+		". X . O . . . ."
+		". . . . . . . ."
+		". . . O . . . ."
+		". . . . O . . ."
+		". . . O . . . ."
+		". . . . O . . .";
+	std::string position(initial);
+	checkers::board board{initial};
+	
+	//playgame(board, turn);
+
+	explorer::optimizer optimizer{board, turn};
+
+	std::cout << board.repr() << std::endl;
+
+	optimizer.compute_score(turn);
+
+	std::cout << "Score: " << optimizer.get_score() << std::endl;
+
+	auto &lines = optimizer.get_lines();
+	testing::perform_moves(board, turn, lines);
+}
+
 int main()
 {
-	/*const char initial[] =
-		". x . x . x . x"
-		"x . x . x . x ."
-		". x . x . x . x"
+	checkers::state turn = checkers::state::BLACK;
+
+	const char initial[] =
+		". x . . . . . ."
+		". . x . . . . ."
+		". x . x . . . ."
 		". . . . . . . ."
 		". . . . . . . ."
-		"o . o . o . o ."
+		". . . . . . . ."
 		". o . o . o . o"
 		"o . o . o . o .";
 	std::string position(initial);
-
-	checkers::board board{position};
-
-	std::string text = board.repr();
-	std::cout << text << std::endl;*/
-
-	checkers::board board;
-	testing::explore_moves(board, checkers::state::RED);
+	checkers::board board{initial};
+	testing::play_against(position, turn, checkers::state::RED);
+	return 0;
 
 
-	//playgame();
+	test_eval();
+	return 0;
+
+
+
+	//testing::random_play();
+	//return 0;
+
+	//const char initial[] =
+	//	". O . . . . . ."
+	//	". . . . . . . ."
+	//	". X . O . . . ."
+	//	". . O . . . . ."
+	//	". . . O . . . ."
+	//	". . . . O . . ."
+	//	". . . O . . . ."
+	//	". . . . O . . .";
+	//std::string position(initial);
+	//checkers::board board{initial};
+	//testing::explore_moves(board, checkers::state::RED);
+	//return 0;
+
+	//playgame(board, checkers::state::RED);
 	return 0;
 }

@@ -3,7 +3,7 @@
 #include <bitset>
 
 // helper that returns a checkers bitboard from [rowstart, rowend]
-static constexpr uint64_t make_checkers_bitboard(int rowstart, int rowend)
+static uint64_t make_checkers_bitboard(int rowstart, int rowend)
 {
 	uint64_t bitboard = 0ull;
 
@@ -213,6 +213,7 @@ static void checkers_compute_jumps(
 	uint64_t toprow = make_checkers_bitboard(width - 1, width - 1);
 	uint64_t bottomrow = make_checkers_bitboard(0, 0);
 
+
 	// check four diagonals
 	// and filter the diagonals facing the wrong direction
 	int forward[2] = { (width - 1), (width + 1) };
@@ -225,7 +226,8 @@ static void checkers_compute_jumps(
 		shifts[n++] = backward[0];
 		shifts[n++] = backward[1];
 	}
-	else if (direction >= 1)
+	
+	if (direction >= 0)
 	{
 		shifts[n++] = forward[0];
 		shifts[n++] = forward[1];
@@ -267,15 +269,16 @@ static void checkers_compute_jumps(
 		std::vector<uint64_t> newcaptures(captures);
 		newcaptures.push_back(mask);
 
-		out.push_back({ origin, secondmask, newcaptures, direction == 0 });
-
 		// change to king if reached the end
-
 		if (direction == 1 && secondmask & toprow)
 			direction = 0;
 		else if (direction == -1 && secondmask & bottomrow)
 			direction = 0;
 
+
+		out.push_back({ origin, secondmask, newcaptures, direction == 0 });
+
+	
 		// iterate, delete other piece, shouldn't have to worry about player pieces
 		other ^= mask;
 		checkers_compute_jumps(out, newcaptures, origin, secondmask, player, other, direction);
@@ -534,7 +537,7 @@ std::vector<checkers::move> checkers::board::compute_moves(state turn) const
 }
 
 // performs the given move based on the current player, returns a new board where the move is performed
-checkers::board checkers::board::perform_move(checkers::move &move, state turn) const
+checkers::board checkers::board::perform_move(const checkers::move &move, state turn) const
 {
 	uint64_t toprow = make_checkers_bitboard(G_CHECKERS_WIDTH - 1, G_CHECKERS_WIDTH - 1);
 	uint64_t bottomrow = make_checkers_bitboard(0, 0);
@@ -617,4 +620,13 @@ std::string checkers::state_repr(state s)
 	}
 
 	return "error";
+}
+
+checkers::state checkers::state_flip(state s)
+{
+
+	if (s == state::RED)
+		return state::BLACK;
+	
+	return state::RED;
 }
