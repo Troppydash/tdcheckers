@@ -1,6 +1,10 @@
 #include <iostream>
 #include "checkers.h"
 
+#include "tester.h"
+
+
+
 void playgame()
 {
 	checkers::state turn = checkers::state::RED;
@@ -132,7 +136,10 @@ int main()
 	std::string text = board.repr();
 	std::cout << text << std::endl;*/
 
+	checkers::board board;
+	testing::explore_moves(board, checkers::state::RED);
 
-	playgame();
+
+	//playgame();
 	return 0;
 }

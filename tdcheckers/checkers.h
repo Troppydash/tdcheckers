@@ -56,6 +56,10 @@ namespace checkers
 		NONE,
 	};
 
+	// return the string representation of the state
+	std::string state_repr(state s);
+
+
 	struct move
 	{
 		// the start of the move
@@ -69,6 +73,11 @@ namespace checkers
 
 		// whether the piece became a king (not if it was a king)
 		bool king;
+
+		move()
+			: from(0ull), to(0ull), captures({}), king(false)
+		{}
+
 
 		// default constructor
 		move(uint64_t from, uint64_t to, std::vector<uint64_t> captures, bool king);
@@ -141,6 +150,25 @@ namespace checkers
 		// returns the board state given the current player turn
 		// note: this does not handle drawing yet
 		state get_state(state turn) const;
+
+		bool operator==(const board &other) const
+		{
+			return m_red == other.m_red && m_black == other.m_black && m_kings == other.m_kings;
+		}
+
+		// implementing hashing for unordered_set
+		struct hash_function
+		{
+			// a functor representing the hash function of our board
+			size_t operator()(const board &board) const
+			{
+				size_t h1 = std::hash<uint64_t>()(board.m_red);
+				size_t h2 = std::hash<uint64_t>()(board.m_black);
+				size_t h3 = std::hash<uint64_t>()(board.m_kings);
+
+				return h1 ^ (h2 << 1) ^ (h3 << 2);
+			}
+		};
 
 	private:
 		// the red player's bit mask

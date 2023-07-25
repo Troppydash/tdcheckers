@@ -3,7 +3,7 @@
 #include <bitset>
 
 // helper that returns a checkers bitboard from [rowstart, rowend]
-static uint64_t make_checkers_bitboard(int rowstart, int rowend)
+static constexpr uint64_t make_checkers_bitboard(int rowstart, int rowend)
 {
 	uint64_t bitboard = 0ull;
 
@@ -58,19 +58,20 @@ static std::string bitboard_repr(uint64_t bitboard)
 }
 
 // split the bits in a bitboard into an array of individual bitboards
-static std::vector<uint64_t> splitbits(uint64_t board)
+static int splitbits(uint64_t board, uint64_t *out, int length)
 {
-	std::vector<uint64_t> bits;
-	for (int i = 0; i < G_CHECKERS_SIZE; ++i)
+	int k = 0;
+	for (int i = 0; i < G_CHECKERS_SIZE && k < length; ++i)
 	{
 		uint64_t mask = 1ull << i;
 		if (!(board & mask))
 			continue;
 
-		bits.push_back(mask);
+		out[k] = mask;
+		k += 1;
 	}
 
-	return bits;
+	return k;
 }
 
 
@@ -92,6 +93,7 @@ static std::pair<int, int> boardtocoord(uint64_t board)
 	}
 
 	// exception
+	return { -1, -1 };
 }
 
 // default constructor
@@ -206,30 +208,32 @@ static void checkers_compute_jumps(
 	int direction
 )
 {
+	int width = G_CHECKERS_WIDTH;
 	uint64_t boardmask = make_checkers_bitboard(0, G_CHECKERS_WIDTH - 1);
+	uint64_t toprow = make_checkers_bitboard(width - 1, width - 1);
+	uint64_t bottomrow = make_checkers_bitboard(0, 0);
 
 	// check four diagonals
-	int width = G_CHECKERS_WIDTH;
+	// and filter the diagonals facing the wrong direction
 	int forward[2] = { (width - 1), (width + 1) };
 	int backward[2] = { -(width + 1), -(width - 1) };
 
-	std::vector<int> shifts;
-	if (direction == -1)
+	int n = 0;
+	int shifts[4];
+	if (direction <= 0)
 	{
-		shifts = { backward[0], backward[1] };
+		shifts[n++] = backward[0];
+		shifts[n++] = backward[1];
 	}
-	else if (direction == 1)
+	else if (direction >= 1)
 	{
-		shifts = { forward[0], forward[1] };
-	}
-	else
-	{
-		shifts = { backward[0], backward[1], forward[0], forward[1] };
+		shifts[n++] = forward[0];
+		shifts[n++] = forward[1];
 	}
 
-	// howtf this going around corners
-	for (auto shift : shifts)
+	for (int i = 0; i < n; ++i)
 	{
+		int shift = shifts[i];
 
 		// create mask
 		uint64_t mask;
@@ -266,8 +270,7 @@ static void checkers_compute_jumps(
 		out.push_back({ origin, secondmask, newcaptures, direction == 0 });
 
 		// change to king if reached the end
-		uint64_t toprow = make_checkers_bitboard(width - 1, width - 1);
-		uint64_t bottomrow = make_checkers_bitboard(0, 0);
+
 		if (direction == 1 && secondmask & toprow)
 			direction = 0;
 		else if (direction == -1 && secondmask & bottomrow)
@@ -456,7 +459,9 @@ std::vector<checkers::move> checkers::board::compute_moves(state turn) const
 		promotion = toprow;
 	}
 
+	// preallocate moves
 	std::vector<move> moves;
+	moves.reserve(20);
 
 	// helpers
 	uint64_t boardmask = make_checkers_bitboard(0, G_CHECKERS_WIDTH - 1);
@@ -508,9 +513,12 @@ std::vector<checkers::move> checkers::board::compute_moves(state turn) const
 
 		// split the locations
 		// there is a maximum of 4 locations to move to
-		std::vector<uint64_t> locations = splitbits(movements);
-		for (uint64_t to : locations)
+		uint64_t locations[4];
+		int n = splitbits(movements, locations, 4);
+		for (int i = 0; i < n; ++i)
 		{
+			uint64_t to = locations[i];
+
 			// became king if reached promotion or is already king
 			bool becameking = (to & promotion) != 0 || king;
 			moves.push_back({ mask, to,{}, becameking });
@@ -591,4 +599,22 @@ checkers::state checkers::board::get_state(state turn) const
 	// we do not deal with draws
 	
 	return state::NONE;
+}
+
+// return the string representation of the state
+std::string checkers::state_repr(state s)
+{
+	switch (s)
+	{
+	case state::RED:
+		return "red";
+	case state::BLACK:
+		return "black";
+	case state::DRAW:
+		return "draw";
+	case state::NONE:
+		return "none";
+	}
+
+	return "error";
 }
