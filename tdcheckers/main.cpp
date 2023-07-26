@@ -1,3 +1,4 @@
+
 #include <iostream>
 #include "checkers.h"
 
@@ -121,8 +122,6 @@ void test_eval()
 	std::string position(initial);
 	checkers::board board{initial};
 	
-	//playgame(board, turn);
-
 	explorer::optimizer optimizer{board, turn};
 
 	std::cout << board.repr() << std::endl;
@@ -138,24 +137,25 @@ void test_eval()
 int main()
 {
 	checkers::state turn = checkers::state::BLACK;
-
+	
 	const char initial[] =
-		". x . . . . . ."
-		". . x . . . . ."
-		". x . x . . . ."
-		". . . . . . . ."
-		". . . . . . . ."
-		". . . . . . . ."
+		". . . x . x . x"
+		". . x . x . x ."
+		". x . x . x . x"
+		"x . . . o . . ."
+		". x . o . . . ."
+		". . . . . . o ."
 		". o . o . o . o"
 		"o . o . o . o .";
 	std::string position(initial);
-	checkers::board board{initial};
-	testing::play_against(position, turn, checkers::state::RED);
+	checkers::board board;
+	testing::play_itself(board, checkers::state::RED);
+	//testing::analyze(board, checkers::state::RED);
 	return 0;
 
 
-	test_eval();
-	return 0;
+	/*test_eval();
+	return 0;*/
 
 
 
@@ -165,12 +165,12 @@ int main()
 	//const char initial[] =
 	//	". O . . . . . ."
 	//	". . . . . . . ."
-	//	". X . O . . . ."
-	//	". . O . . . . ."
-	//	". . . O . . . ."
-	//	". . . . O . . ."
-	//	". . . O . . . ."
-	//	". . . . O . . .";
+	//	". . . . . . . ."
+	//	". . . . . . . ."
+	//	". . . . . . . ."
+	//	". . x . . . . ."
+	//	". . . o . . . ."
+	//	". . . . . . . .";
 	//std::string position(initial);
 	//checkers::board board{initial};
 	//testing::explore_moves(board, checkers::state::RED);

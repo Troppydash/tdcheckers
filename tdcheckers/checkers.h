@@ -171,6 +171,9 @@ namespace checkers
 			}
 		};
 
+		uint64_t get_player(state player) const;
+		uint64_t get_kings(state player) const;
+
 	private:
 		// the red player's bit mask
 		uint64_t m_red;

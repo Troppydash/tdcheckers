@@ -22,6 +22,7 @@ namespace explorer
 
 		float get_score() const;
 
+		// this is currently broken
 		const std::vector<checkers::move> &get_lines() const;
 
 		const std::optional<checkers::move> &get_move() const;

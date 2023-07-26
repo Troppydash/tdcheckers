@@ -189,6 +189,7 @@ void testing::play_against(checkers::board position, checkers::state player, che
 		else
 		{
 			optimizer.update_board(position);
+
 			optimizer.compute_score(turn);
 
 			std::cout << "Score = " << optimizer.get_score() << std::endl;
@@ -202,4 +203,69 @@ void testing::play_against(checkers::board position, checkers::state player, che
 	}
 	
 
+}
+
+void testing::play_itself(checkers::board position, checkers::state turn)
+{
+	checkers::board firstboard, secondboard;
+	firstboard.copy(position);
+	secondboard.copy(position);
+
+	explorer::optimizer first{firstboard, turn};
+	explorer::optimizer second{secondboard, checkers::state_flip(turn)};
+
+	bool isfirst = true;
+
+	while (true)
+	{
+		std::cout << position.repr() << std::endl;
+
+		if (position.get_state(turn) != checkers::state::NONE)
+		{
+			std::cout << "Finished" << std::endl;
+			break;
+		}
+
+		if (isfirst)
+		{
+			first.update_board(position);
+			first.compute_score(turn);
+
+			std::cout << "Score1 = " << first.get_score() << std::endl;
+
+			checkers::move best = first.get_move().value();
+
+			// perform move
+			position = position.perform_move(best, turn);
+			turn = checkers::state_flip(turn);
+		}
+
+		else
+		{
+			second.update_board(position);
+			second.compute_score(turn);
+
+			std::cout << "Score2 = " << second.get_score() << std::endl;
+
+			checkers::move best = second.get_move().value();
+
+			// perform move
+			position = position.perform_move(best, turn);
+			turn = checkers::state_flip(turn);
+		}
+
+		isfirst = !isfirst;
+	}
+}
+
+void testing::analyze(checkers::board position, checkers::state turn)
+{
+	std::cout << position.repr() << std::endl;
+
+	explorer::optimizer optimizer{position, turn};
+
+	optimizer.compute_score(turn);
+
+	std::cout << "Score is " << optimizer.get_score() << std::endl;
+	std::cout << "Best is " << optimizer.get_move().value().str() << std::endl;
 }

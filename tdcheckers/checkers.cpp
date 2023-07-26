@@ -3,7 +3,7 @@
 #include <bitset>
 
 // helper that returns a checkers bitboard from [rowstart, rowend]
-static uint64_t make_checkers_bitboard(int rowstart, int rowend)
+static constexpr uint64_t make_checkers_bitboard(int rowstart, int rowend)
 {
 	uint64_t bitboard = 0ull;
 
@@ -201,32 +201,31 @@ std::string checkers::move::str() const
 //   direction is the direction headed by the piece, updated during promotions
 static void checkers_compute_jumps(
 	std::vector<checkers::move> &out,
-	std::vector<uint64_t> captures,
+	const std::vector<uint64_t> &captures,
 	uint64_t origin,
 	uint64_t at,
 	uint64_t player, uint64_t other,
 	int direction
 )
 {
-	int width = G_CHECKERS_WIDTH;
-	uint64_t boardmask = make_checkers_bitboard(0, G_CHECKERS_WIDTH - 1);
-	uint64_t toprow = make_checkers_bitboard(width - 1, width - 1);
-	uint64_t bottomrow = make_checkers_bitboard(0, 0);
+	constexpr int width = G_CHECKERS_WIDTH;
+	constexpr uint64_t boardmask = make_checkers_bitboard(0, G_CHECKERS_WIDTH - 1);
+	constexpr uint64_t toprow = make_checkers_bitboard(width - 1, width - 1);
+	constexpr uint64_t bottomrow = make_checkers_bitboard(0, 0);
 
 
 	// check four diagonals
 	// and filter the diagonals facing the wrong direction
-	int forward[2] = { (width - 1), (width + 1) };
-	int backward[2] = { -(width + 1), -(width - 1) };
+	constexpr static int forward[2] = { (width - 1), (width + 1) };
+	constexpr static int backward[2] = { -(width + 1), -(width - 1) };
 
 	int n = 0;
-	int shifts[4];
+	static int shifts[4];
 	if (direction <= 0)
 	{
 		shifts[n++] = backward[0];
 		shifts[n++] = backward[1];
 	}
-	
 	if (direction >= 0)
 	{
 		shifts[n++] = forward[0];
@@ -289,9 +288,9 @@ static void checkers_compute_jumps(
 checkers::board::board()
 {
 	// red is from row [last-2, last]
-	uint64_t red = make_checkers_bitboard(G_CHECKERS_WIDTH - 1 - 2, G_CHECKERS_WIDTH - 1);
+	constexpr uint64_t red = make_checkers_bitboard(G_CHECKERS_WIDTH - 1 - 2, G_CHECKERS_WIDTH - 1);
 	// black is from row [0, 2]
-	uint64_t black = make_checkers_bitboard(0, 2);
+	constexpr uint64_t black = make_checkers_bitboard(0, 2);
 
 	m_red = red;
 	m_black = black;
@@ -439,26 +438,26 @@ std::string checkers::board::repr() const
 // returns a list of available moves given the current player
 std::vector<checkers::move> checkers::board::compute_moves(state turn) const
 {
-	uint64_t toprow = make_checkers_bitboard(G_CHECKERS_WIDTH - 1, G_CHECKERS_WIDTH - 1);
-	uint64_t bottomrow = make_checkers_bitboard(0, 0);
+	constexpr uint64_t toprow = make_checkers_bitboard(G_CHECKERS_WIDTH - 1, G_CHECKERS_WIDTH - 1);
+	constexpr uint64_t bottomrow = make_checkers_bitboard(0, 0);
 
 	// retrieve the bitboards
 	uint64_t player, other;
 	uint64_t promotion;
-	int direction;
+	int maindirection;
 
 	if (turn == state::RED)
 	{
 		player = m_red;
 		other = m_black;
-		direction = -1;
+		maindirection = -1;
 		promotion = bottomrow;
 	}
 	else
 	{
 		player = m_black;
 		other = m_red;
-		direction = 1;
+		maindirection = 1;
 		promotion = toprow;
 	}
 
@@ -467,12 +466,14 @@ std::vector<checkers::move> checkers::board::compute_moves(state turn) const
 	moves.reserve(20);
 
 	// helpers
-	uint64_t boardmask = make_checkers_bitboard(0, G_CHECKERS_WIDTH - 1);
+	constexpr uint64_t boardmask = make_checkers_bitboard(0, G_CHECKERS_WIDTH - 1);
 	int width = G_CHECKERS_WIDTH;
 
 	// for each player piece
 	for (int i = 0; i < G_CHECKERS_SIZE; ++i)
 	{
+		int direction = maindirection;
+
 		uint64_t mask = (1ull << i);
 
 		// return if not the player's piece
@@ -516,7 +517,9 @@ std::vector<checkers::move> checkers::board::compute_moves(state turn) const
 
 		// split the locations
 		// there is a maximum of 4 locations to move to
-		uint64_t locations[4];
+
+		// TODO: Optimize this
+		static uint64_t locations[4];
 		int n = splitbits(movements, locations, 4);
 		for (int i = 0; i < n; ++i)
 		{
@@ -539,8 +542,8 @@ std::vector<checkers::move> checkers::board::compute_moves(state turn) const
 // performs the given move based on the current player, returns a new board where the move is performed
 checkers::board checkers::board::perform_move(const checkers::move &move, state turn) const
 {
-	uint64_t toprow = make_checkers_bitboard(G_CHECKERS_WIDTH - 1, G_CHECKERS_WIDTH - 1);
-	uint64_t bottomrow = make_checkers_bitboard(0, 0);
+	constexpr uint64_t toprow = make_checkers_bitboard(G_CHECKERS_WIDTH - 1, G_CHECKERS_WIDTH - 1);
+	constexpr uint64_t bottomrow = make_checkers_bitboard(0, 0);
 
 	uint64_t player, other;
 	uint64_t promotion;
@@ -602,6 +605,18 @@ checkers::state checkers::board::get_state(state turn) const
 	// we do not deal with draws
 	
 	return state::NONE;
+}
+
+uint64_t checkers::board::get_player(state player) const
+{
+	if (player == state::RED)
+		return m_red;
+	return m_black;
+}
+
+uint64_t checkers::board::get_kings(state player) const
+{
+	return get_player(player) & m_kings;
 }
 
 // return the string representation of the state
