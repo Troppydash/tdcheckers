@@ -219,6 +219,7 @@ static float evaluate(
 	std::vector<checkers::move> &&precalc
 )
 {
+	// TODO: Fix the endgame on this to not repeat
 	extra.exploration += 1;
 
 	// use transposition
@@ -343,6 +344,9 @@ static float evaluate(
 		}
 	}
 
+	if (value != 0)
+		value -= 0.01 * sgn(value);
+
 	// update transposition
 	if (extra.transposition.count(hash) != 0)
 	{
@@ -400,22 +404,14 @@ void explorer::optimizer::compute_score(checkers::state turn)
 			extra,
 			m_board.compute_moves(turn)
 		);
+
+		// debug
 		std::cout << "At depth " << depth << ", score = " << m_score << std::endl;
 		std::cout << "  " << extra.exploration << std::endl;
 
-	/*	for (int j = 0; j < moves.size(); ++j)
-		{
-			uint64_t hash = hashing(m_board.perform_move(moves[j], turn)) ^ std::hash<bool>()(false);
-			if (extra.transposition.count(hash) == 0)
-				continue;
-
-			auto &data = extra.transposition[hash];
-			std::cout << moves[j].str() << " is " << data.second << std::endl;
-		}*/
-
 
 		// exit when the score is sure
-		if (abs(m_score) > 20.0f || extra.exploration > 2000000)
+		if (abs(m_score) > 50.0f || extra.exploration > 1000000)
 			break;
 	}
 
@@ -424,15 +420,9 @@ void explorer::optimizer::compute_score(checkers::state turn)
 	m_transposition = extra.transposition;
 
 	// compute best move
+	std::cout << "Moves: " << std::endl;
 
-	// min-max state
 	bool maxing = turn == m_player;
-
-	// TODO: this don't work
-
-	// else get the moves
-
-	// min/max
 	int best = -1;
 	if (maxing)
 	{
@@ -465,9 +455,6 @@ void explorer::optimizer::compute_score(checkers::state turn)
 	}
 
 	m_best = std::optional<checkers::move>(moves[best]);
-	
-	// debug
-	std::cout << "Explored " << extra.exploration << std::endl;
 }
 
 void explorer::optimizer::update_board(checkers::board newboard)

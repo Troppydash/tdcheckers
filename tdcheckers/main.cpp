@@ -134,8 +134,113 @@ void test_eval()
 	testing::perform_moves(board, turn, lines);
 }
 
+
+
+const checkers::move &get_move(const std::vector<checkers::move> &moves, checkers::state turn)
+{
+	while (true)
+	{
+		// print prompt
+		std::cout << checkers::state_repr(turn) << ": ";
+		std::cout.flush();
+
+		// ask for input
+		std::string text;
+		std::cin >> text;
+
+		for (auto &move : moves)
+		{
+			if (move.str() == text)
+			{
+				return move;
+			}
+		}
+
+		std::cout << "please enter a valid move" << std::endl;
+	}
+}
+
+
+void actual_shit()
+{
+	checkers::board board;
+	checkers::state turn = checkers::state::RED;
+	checkers::state ai = checkers::state::BLACK;
+
+
+	// create optimizer
+	explorer::optimizer optimizer{board, ai};
+
+	int i = 0;
+	while (true)
+	{
+		i += 1;
+		std::cout << "\n------- Turn " << i << " -------" << std::endl;
+		std::cout << board.repr() << std::endl;
+
+		auto moves = board.compute_moves(turn);
+
+
+		if (turn == ai)
+		{
+			// compute best move
+			optimizer.update_board(board);
+			optimizer.compute_score(turn);
+			checkers::move best = optimizer.get_move().value();
+
+			// manual override
+			std::cout << "Selected " << best.str() << ", override? " << std::endl;
+
+			std::string text;
+			std::cin >> text;
+
+			if (text == "yes")
+			{ 
+				best = get_move(moves, turn);
+			}
+
+
+			// play move
+			board = board.perform_move(best, turn);
+			turn = checkers::state_flip(turn);
+		}
+		else
+		{
+			// print moves
+			std::cout << "moves: ";
+			for (auto &m : moves)
+			{
+				std::cout << m.str() << " ";
+			}
+			std::cout << std::endl;
+
+			checkers::move move = get_move(moves, turn);
+
+			// play move
+			board = board.perform_move(move, turn);
+			turn = checkers::state_flip(turn);
+		}
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+}
+
+
 int main()
 {
+	//actual_shit();
+	//return 0;
+
 	checkers::state turn = checkers::state::BLACK;
 	
 	const char initial[] =

@@ -566,7 +566,7 @@ checkers::board checkers::board::perform_move(const checkers::move &move, state 
 	player ^= (move.from | move.to);
 
 	// remove king
-	uint64_t king = (m_kings | move.from) ^ move.from;
+	uint64_t king = m_kings & (~move.from);
 	// add king if became king
 	if (move.king)
 		king |= move.to;
@@ -575,7 +575,11 @@ checkers::board checkers::board::perform_move(const checkers::move &move, state 
 	// handle capture chains
 	for (auto cap : move.captures)
 	{
-		other ^= cap;
+		// remove pieces captured
+		other &= ~cap;
+		// also remove king on the captures
+		king &= ~cap;
+		
 	}
 
 	if (turn == state::RED)
