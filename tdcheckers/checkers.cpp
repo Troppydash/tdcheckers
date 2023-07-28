@@ -1,6 +1,8 @@
 #include "checkers.h"
 
 #include <bitset>
+#include "global.h"
+
 
 // helper that returns a checkers bitboard from [rowstart, rowend]
 static constexpr uint64_t make_checkers_bitboard(int rowstart, int rowend)
@@ -27,6 +29,7 @@ static constexpr uint64_t make_checkers_bitboard(int rowstart, int rowend)
 
 	return bitboard;
 }
+
 
 // returns a string representation of the bitboard
 static std::string bitboard_repr(uint64_t bitboard)
@@ -277,7 +280,7 @@ static void checkers_compute_jumps(
 
 		out.push_back({ origin, secondmask, newcaptures, direction == 0 });
 
-	
+
 		// iterate, delete other piece, shouldn't have to worry about player pieces
 		other ^= mask;
 		checkers_compute_jumps(out, newcaptures, origin, secondmask, player, other, direction);
@@ -463,18 +466,20 @@ std::vector<checkers::move> checkers::board::compute_moves(state turn) const
 
 	// preallocate moves
 	std::vector<move> moves;
-	moves.reserve(20);
+	moves.reserve(15);
 
 	// helpers
 	constexpr uint64_t boardmask = make_checkers_bitboard(0, G_CHECKERS_WIDTH - 1);
 	int width = G_CHECKERS_WIDTH;
 
-	// for each player piece
-	for (int i = 0; i < G_CHECKERS_SIZE; ++i)
-	{
-		int direction = maindirection;
+	// for storing the available directions
+	static uint64_t directions[4];
 
-		uint64_t mask = (1ull << i);
+	// for each player piece
+	constexpr auto masks = global::boardmask();
+	for (int i = 0; i < masks.size; ++i)
+	{
+		uint64_t mask = masks.masks[i];
 
 		// return if not the player's piece
 		if (!(player & mask))
@@ -485,49 +490,44 @@ std::vector<checkers::move> checkers::board::compute_moves(state turn) const
 
 		// found the piece at mask
 		// find its moves
+		int direction = maindirection;
+		if (king)
+			direction = 0;
+
 
 		// compute the forward and backward bitboards
-		uint64_t forward, backward;
-		if (direction > 0)
+		int n = 0;
+		if (direction >= 0)
 		{
-			forward = (mask << (width - 1)) | (mask << (width + 1));
-			backward = (mask >> (width - 1)) | (mask >> (width + 1));
-		}
-		else
-		{
-			backward = (mask << (width - 1)) | (mask << (width + 1));
-			forward = (mask >> (width - 1)) | (mask >> (width + 1));
+			directions[n++] = mask << (width - 1);
+			directions[n++] = mask << (width + 1);
 		}
 
-		// compute the 1st degree movements
-		uint64_t move = forward;
-		if (king)
+		if (direction <= 0)
 		{
-			direction = 0;
-			move |= backward;
+			directions[n++] = mask >> (width - 1);
+			directions[n++] = mask >> (width + 1);
 		}
 
-
-		move &= boardmask;  // can only be a legal board position
-		move &= ~player;   // cannot move to self
-
-		// compute the pure movement options
-		uint64_t movements = move;
-		movements &= ~other;  // cannot move to the opponent
-
-		// split the locations
-		// there is a maximum of 4 locations to move to
-
-		// TODO: Optimize this
-		static uint64_t locations[4];
-		int n = splitbits(movements, locations, 4);
 		for (int i = 0; i < n; ++i)
 		{
-			uint64_t to = locations[i];
+			uint64_t to = directions[i];
+
+			// can only be a legal position
+			if ((to & boardmask) == 0)
+				continue;
+
+			// cannot move to itself
+			if (to & player)
+				continue;
+
+			// cannot move to other
+			if (to & other)
+				continue;
 
 			// became king if reached promotion or is already king
 			bool becameking = (to & promotion) != 0 || king;
-			moves.push_back({ mask, to,{}, becameking });
+			moves.push_back({ mask, to, {}, becameking });
 		}
 
 
@@ -579,7 +579,7 @@ checkers::board checkers::board::perform_move(const checkers::move &move, state 
 		other &= ~cap;
 		// also remove king on the captures
 		king &= ~cap;
-		
+
 	}
 
 	if (turn == state::RED)
@@ -607,7 +607,7 @@ checkers::state checkers::board::get_state(state turn) const
 	}
 
 	// we do not deal with draws
-	
+
 	return state::NONE;
 }
 
@@ -646,6 +646,6 @@ checkers::state checkers::state_flip(state s)
 
 	if (s == state::RED)
 		return state::BLACK;
-	
+
 	return state::RED;
 }

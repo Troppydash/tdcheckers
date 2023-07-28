@@ -7,20 +7,22 @@
 
 void testing::explore_moves(checkers::board position, checkers::state turn)
 {
-	std::unordered_set<checkers::board, checkers::board::hash_function> positions{position};
+	std::vector<checkers::board> positions{position};
+	//std::unordered_set<checkers::board, checkers::board::hash_function> positions{position};
 
 	int depth = 0;
 	while (true)
 	{
 		size_t actions = 0;
-		std::unordered_set<checkers::board, checkers::board::hash_function> nextpositions;
+		std::vector<checkers::board> nextpositions;
+		//std::unordered_set<checkers::board, checkers::board::hash_function> nextpositions;
 		for (auto &board : positions)
 		{
 			std::vector<checkers::move> moves = position.compute_moves(turn);
 			actions += moves.size();
 
 			for (auto &m : moves)
-				nextpositions.emplace(board.perform_move(m, turn));
+				nextpositions.push_back(board.perform_move(m, turn));
 		}
 
 		std::cout << "Depth " << depth << ": " << actions << std::endl;

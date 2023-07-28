@@ -255,6 +255,7 @@ int main()
 	std::string position(initial);
 	checkers::board board;
 	testing::play_itself(board, checkers::state::RED);
+	//testing::explore_moves(board, checkers::state::RED);
 	//testing::analyze(board, checkers::state::RED);
 	return 0;
 

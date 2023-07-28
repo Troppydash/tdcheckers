@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <random>
 
+#include "global.h"
+
 explorer::optimizer::optimizer(checkers::board board, checkers::state turn)
 	: m_board(board), m_player(turn), m_score(0), m_best(), m_lines()
 {
@@ -14,7 +16,6 @@ struct evaluate_extra
 {
 	std::unordered_map<uint64_t, std::pair<int, float>> transposition;
 	size_t exploration;
-	//std::atomic<bool> stop;
 };
 
 
@@ -23,12 +24,15 @@ template <typename T> int sgn(T val) {
 	return (T(0) < val) - (val < T(0));
 }
 
+// returns the number of bits in the bitboard
 int countbits(uint64_t bitboard)
 {
+	constexpr auto masks = global::boardmask();
 	int count = 0;
-	for (int i = 0; i < 8 * sizeof(uint64_t); ++i)
+	for (int i = 0; i < masks.size; ++i)
 	{
-		if (((1ull << i) & bitboard) != 0)
+		uint64_t mask = masks.masks[i];
+		if ((mask & bitboard) != 0)
 			count += 1;
 	}
 	return count;
@@ -46,8 +50,8 @@ static float heuristic(
 		7.0f, 8.0f, 9.0f, 9.0f, 9.0f, 9.0f, 8.0f, 7.0f,
 		6.0f, 6.0f, 3.0f, 4.0f, 4.0f, 3.0f, 6.0f, 6.0f,
 		5.0f, 3.0f, 2.0f, 2.0f, 2.0f, 2.0f, 3.0f, 5.0f,
-		4.0f, 5.0f, 3.0f, 3.0f, 3.0f, 3.0f, 5.0f, 4.0f,
-		2.0f, 7.0f, 5.0f, 5.0f, 5.0f, 5.0f, 7.0f, 2.0f,
+		4.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 5.0f, 4.0f,
+		4.0f, 7.0f, 3.0f, 3.0f, 3.0f, 3.0f, 7.0f, 4.0f,
 		2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f,
 		2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 2.0f,
 		2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f,
@@ -64,6 +68,7 @@ static float heuristic(
 
 	float playervalue = 0.0f;
 	float othervalue = 0.0f;
+
 	for (int i = 0; i < G_CHECKERS_SIZE; ++i)
 	{
 		uint64_t mask = (1ull << i);
@@ -96,8 +101,8 @@ static float heuristic(
 	int kingdiff = countbits(board.get_kings(player)) - countbits(board.get_kings(other));
 
 	// the better captures
-	uint64_t kings = board.get_kings(other);
-	size_t captures = 0;
+	uint64_t kings = board.get_kings(other) | board.get_kings(player);
+	float captures = 0;
 	for (auto &move : moves)
 	{
 		for (auto spot : move.captures)
@@ -109,7 +114,7 @@ static float heuristic(
 		}
 	}
 
-	size_t othercaptures = 0;
+	float othercaptures = 0;
 	for (auto &move : board.compute_moves(checkers::state_flip(turn)))
 	{
 		for (auto spot : move.captures)
@@ -122,14 +127,14 @@ static float heuristic(
 	}
 
 
-	float scale = (turn == player) ? 1 : -1;
+	float scale = (turn == player) ? 1.0f : -1.0f;
 
-	if (pieces < 10)
+	if (pieces < 14)
 	{
-		return 2.6f * diff + + 8.0f * kingdiff + 1.8f * scale * (captures - 1.1f * othercaptures);
+		return 2.6f * diff + + 8.0f * kingdiff + 1.8f * scale * (captures - othercaptures);
 	}
 
-	return 0.6f * diff + 0.03f * piecevalue + 8.0f * kingdiff + 1.8f * scale * (captures - 1.1f * othercaptures);
+	return 0.6f * diff + 0.1f * piecevalue + 5.0f * kingdiff + 1.8f * scale * (captures - othercaptures);
 }
 
 static std::vector<float> weight_moves(
@@ -251,7 +256,9 @@ static float evaluate(
 
 	if (depth_remaining == 0)
 	{
-		return heuristic(board, turn, player, moves);
+		float score = heuristic(board, turn, player, moves);
+		extra.transposition[hash] = { 0, score };
+		return score;
 	}
 
 
@@ -278,11 +285,12 @@ static float evaluate(
 		{
 			auto &move = moves[i];
 			int remaining = depth_remaining - 1;
-			if (move.captures.size() >= 1 && remaining <= 1)
+			if (move.captures.size() >= 1 && remaining < move.captures.size())
 			{
 				extra.exploration -= 1;
 				remaining += 1;
 			}
+			
 
 			float newvalue = evaluate(
 				board.perform_move(move, turn),
@@ -314,7 +322,7 @@ static float evaluate(
 		{
 			auto &move = moves[i];
 			int remaining = depth_remaining - 1;
-			if (move.captures.size() >= 1 && remaining <= 1)
+			if (move.captures.size() >= 1 && remaining < move.captures.size())
 			{
 				extra.exploration -= 1;
 				remaining += 1;
@@ -345,7 +353,7 @@ static float evaluate(
 	}
 
 	if (value != 0)
-		value -= 0.01 * sgn(value);
+		value -= 0.01f * sgn(value);
 
 	// update transposition
 	if (extra.transposition.count(hash) != 0)
@@ -387,7 +395,7 @@ void explorer::optimizer::compute_score(checkers::state turn)
 	auto hashing = checkers::board::hash_function();
 
 	// iterative deepining
-	int startdepth = 8;
+	int startdepth = 10;
 	int enddepth = 15;
 	for (int depth = startdepth; depth < enddepth; ++depth)
 	{
