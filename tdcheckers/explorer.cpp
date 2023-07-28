@@ -46,6 +46,7 @@ static float heuristic(
 	const std::vector<checkers::move> &moves
 )
 {
+
 	static float weights[] = {
 		7.0f, 8.0f, 9.0f, 9.0f, 9.0f, 9.0f, 8.0f, 7.0f,
 		6.0f, 6.0f, 3.0f, 4.0f, 4.0f, 3.0f, 6.0f, 6.0f,
@@ -59,10 +60,109 @@ static float heuristic(
 
 	checkers::state other = checkers::state_flip(player);
 
-	// count piece closeness to end
 	uint64_t playerbitboard = board.get_player(player);
 	uint64_t otherbitboard = board.get_player(other);
+	uint64_t bitboard = playerbitboard | otherbitboard;
 	uint64_t kingbitboard = board.get_kings(player) | board.get_kings(other);
+
+	float selfscore = 0.0f;
+	float otherscore = 0.0f;
+
+	for (int i = 0; i < G_CHECKERS_SIZE; ++i)
+	{
+		// reward:
+		//     men positioning   20%
+		//     king in general   30%
+		//     available captures  50%
+
+		uint64_t mask = 1ull << i;
+
+		if ((mask & bitboard) == 0)
+		{
+			continue;
+		}
+
+		bool isplayer = (mask & playerbitboard) != 0;
+		bool isking = (mask & kingbitboard) != 0;
+
+		float menvalue = 0.0f;
+		float kingvalue = 0.0f;
+		if (!isking)
+		{
+			if (player == checkers::state::RED)
+			{
+				menvalue = weights[i] / 9.0f;
+			}
+			else
+			{
+				menvalue = weights[G_BOARDMASKS_SIZE - i - 1] / 9.0f;
+			}
+
+		}
+		else
+		{
+			kingvalue = 1.0f;
+		}
+
+		if (isplayer)
+		{
+			selfscore += 0.2 * menvalue + 0.3 * kingvalue;
+		}
+		else
+		{
+			otherscore += 0.2 * menvalue + 0.3 * kingvalue;
+		}
+	}
+
+	/*
+	float captures = 0;
+	for (auto &move : moves)
+	{
+		float value = 0.0f;
+		for (auto spot : move.captures)
+		{
+			if ((spot & kingbitboard) != 0)
+				value += 1.f;
+			else
+				value += 0.5f;
+		}
+		captures += 0.5 * value;
+	}
+
+
+	float othercaptures = 0;
+	for (auto &move : board.compute_moves(checkers::state_flip(turn)))
+	{
+		float value = 0.0f;
+		for (auto spot : move.captures)
+		{
+			if ((spot & kingbitboard) != 0)
+				value += 1.0f;
+			else
+				value += 0.5f;
+		}
+		othercaptures += 0.5 * value;
+	}
+
+	captures = 0.0f;
+	othercaptures = 0.0f;
+	*/
+
+	return selfscore - (otherscore);
+
+	/*if (turn == player)
+	{
+		return selfscore - (otherscore);
+	}
+	else
+	{
+		return selfscore - (otherscore);
+
+	}*/
+
+
+	// count piece closeness to end
+	/*
 
 	int pieces = countbits(playerbitboard) + countbits(otherbitboard);
 
@@ -135,6 +235,7 @@ static float heuristic(
 	}
 
 	return 0.6f * diff + 0.1f * piecevalue + 5.0f * kingdiff + 1.8f * scale * (captures - othercaptures);
+	*/
 }
 
 static std::vector<float> weight_moves(
@@ -224,7 +325,6 @@ static float evaluate(
 	std::vector<checkers::move> &&precalc
 )
 {
-	// TODO: Fix the endgame on this to not repeat
 	extra.exploration += 1;
 
 	// use transposition
@@ -285,7 +385,7 @@ static float evaluate(
 		{
 			auto &move = moves[i];
 			int remaining = depth_remaining - 1;
-			if (move.captures.size() >= 1 && remaining < move.captures.size())
+			if (move.captures.size() >= 1 && remaining <= move.captures.size())
 			{
 				extra.exploration -= 1;
 				remaining += 1;
@@ -307,11 +407,13 @@ static float evaluate(
 			if (newvalue > value)
 				value = newvalue;
 
+			if (value > alpha)
+				alpha = value;
+
+
 			if (value > beta)
 				break;
 
-			if (value > alpha)
-				alpha = value;
 		}
 	}
 	else
@@ -322,7 +424,7 @@ static float evaluate(
 		{
 			auto &move = moves[i];
 			int remaining = depth_remaining - 1;
-			if (move.captures.size() >= 1 && remaining < move.captures.size())
+			if (move.captures.size() >= 1 && remaining <= move.captures.size())
 			{
 				extra.exploration -= 1;
 				remaining += 1;
@@ -343,12 +445,11 @@ static float evaluate(
 			if (newvalue < value)
 				value = newvalue;
 
-			if (value < alpha)
-				break;
-
 			if (value < beta)
 				beta = value;
-		
+
+			if (value < alpha)
+				break;
 		}
 	}
 
@@ -395,8 +496,8 @@ void explorer::optimizer::compute_score(checkers::state turn)
 	auto hashing = checkers::board::hash_function();
 
 	// iterative deepining
-	int startdepth = 10;
-	int enddepth = 15;
+	int startdepth = 8;
+	int enddepth = 16;
 	for (int depth = startdepth; depth < enddepth; ++depth)
 	{
 		extra.exploration = 0;
@@ -417,9 +518,8 @@ void explorer::optimizer::compute_score(checkers::state turn)
 		std::cout << "At depth " << depth << ", score = " << m_score << std::endl;
 		std::cout << "  " << extra.exploration << std::endl;
 
-
 		// exit when the score is sure
-		if (abs(m_score) > 50.0f || extra.exploration > 1000000)
+		if (abs(m_score) > 50.0f || extra.exploration > 3000000)
 			break;
 	}
 

@@ -2,7 +2,7 @@
 
 #include "checkers.h"
 
-#define G_BOARDMASKS_SIZE (4*8)
+#define G_BOARDMASKS_SIZE (8*8)
 
 namespace global
 {

@@ -163,12 +163,10 @@ namespace checkers
 			// a functor representing the hash function of our board
 			size_t operator()(const board &board) const
 			{
-				// todo: improve this
-				size_t h1 = std::hash<uint64_t>()(board.m_red);
-				size_t h2 = std::hash<uint64_t>()(board.m_black);
+				size_t h1 = std::hash<uint64_t>()(board.m_red | (board.m_black >> 1));
 				size_t h3 = std::hash<uint64_t>()(board.m_kings);
 
-				return h1 ^ (h2 << 1) ^ (h3 << 2);
+				return h1 ^ (h3 << 1);
 			}
 		};
 

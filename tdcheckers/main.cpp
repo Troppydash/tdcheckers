@@ -238,8 +238,8 @@ void actual_shit()
 
 int main()
 {
-	//actual_shit();
-	//return 0;
+	actual_shit();
+	return 0;
 
 	checkers::state turn = checkers::state::BLACK;
 	
@@ -247,16 +247,16 @@ int main()
 		". . . x . x . x"
 		". . x . x . x ."
 		". x . x . x . x"
-		"x . . . o . . ."
-		". x . o . . . ."
+		"x . o . o . . ."
+		". x . . . . . ."
 		". . . . . . o ."
 		". o . o . o . o"
 		"o . o . o . o .";
 	std::string position(initial);
 	checkers::board board;
-	testing::play_itself(board, checkers::state::RED);
+	//testing::play_itself(board, checkers::state::RED);
 	//testing::explore_moves(board, checkers::state::RED);
-	//testing::analyze(board, checkers::state::RED);
+	testing::analyze(board, checkers::state::RED);
 	return 0;
 
 

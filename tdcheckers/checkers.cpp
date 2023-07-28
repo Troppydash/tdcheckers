@@ -272,18 +272,23 @@ static void checkers_compute_jumps(
 		newcaptures.push_back(mask);
 
 		// change to king if reached the end
-		if (direction == 1 && secondmask & toprow)
+		bool promoted = false;
+
+		if ((direction == 1 && (secondmask & toprow)) || (direction == -1 && (secondmask & bottomrow)))
+		{
 			direction = 0;
-		else if (direction == -1 && secondmask & bottomrow)
-			direction = 0;
+			promoted = true;
+		}
 
 
 		out.push_back({ origin, secondmask, newcaptures, direction == 0 });
 
 
 		// iterate, delete other piece, shouldn't have to worry about player pieces
-		other ^= mask;
-		checkers_compute_jumps(out, newcaptures, origin, secondmask, player, other, direction);
+		if (!promoted)
+		{
+			checkers_compute_jumps(out, newcaptures, origin, secondmask, player, other ^ mask, direction);
+		}
 	}
 }
 
