@@ -163,9 +163,19 @@ const checkers::move &get_move(const std::vector<checkers::move> &moves, checker
 
 void actual_shit()
 {
-	checkers::board board;
+	const char initial[] =
+		". x . x . x . x"
+		"x . x . x . . ."
+		". x . x . x . x"
+		". . . . . . . ."
+		". . . o . o . x"
+		"o . o . o . . ."
+		". . . o . o . o"
+		"o . o . o . o .";
+	std::string position(initial);
+	checkers::board board{};
 	checkers::state turn = checkers::state::RED;
-	checkers::state ai = checkers::state::BLACK;
+	checkers::state ai = checkers::state::RED;
 
 
 	// create optimizer
@@ -238,7 +248,11 @@ void actual_shit()
 
 int main()
 {
+	
 	actual_shit();
+	
+	//testing::explore_moves({}, checkers::state::RED);
+
 	return 0;
 
 	checkers::state turn = checkers::state::BLACK;
@@ -253,7 +267,7 @@ int main()
 		". o . o . o . o"
 		"o . o . o . o .";
 	std::string position(initial);
-	checkers::board board;
+	checkers::board board{position};
 	//testing::play_itself(board, checkers::state::RED);
 	//testing::explore_moves(board, checkers::state::RED);
 	testing::analyze(board, checkers::state::RED);

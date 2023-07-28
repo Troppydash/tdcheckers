@@ -553,6 +553,17 @@ checkers::board checkers::board::perform_move(const checkers::move &move, state 
 	uint64_t player, other;
 	uint64_t promotion;
 
+	// assert that the turn is valid
+	if ((move.from & m_red) && turn != state::RED)
+	{
+		std::cout << "Fuck" << std::endl;
+	}
+
+	if ((move.from & m_black) && turn != state::BLACK)
+	{
+		std::cout << "Fuck" << std::endl;
+	}
+
 	if (turn == state::RED)
 	{
 		player = m_red;
@@ -566,9 +577,16 @@ checkers::board checkers::board::perform_move(const checkers::move &move, state 
 		promotion = toprow;
 	}
 
+	if (move.from == move.to)
+	{
+		std::cout << "Fuck" << std::endl;
+	}
+
 
 	// move player piece
-	player ^= (move.from | move.to);
+	player &= ~move.from;
+	player |= move.to;
+	//player ^= (move.from | move.to);
 
 	// remove king
 	uint64_t king = m_kings & (~move.from);
