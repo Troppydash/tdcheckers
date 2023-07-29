@@ -52,9 +52,9 @@ static float heuristic(
 		7.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 7.0f,
 		7.0f, 4.0f, 4.0f, 4.0f, 4.0f, 4.0f, 4.0f, 7.0f,
 		7.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 7.0f,
-		2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f,
-		2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f,
-		2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f,
+		7.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 7.0f,
+		7.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 7.0f,
+		5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f,
 	};
 
 	checkers::state other = checkers::state_flip(player);
@@ -130,7 +130,7 @@ static float heuristic(
 
 	float netmoves = (float)moves.size() - (float)board.compute_moves(checkers::state_flip(turn)).size();
 
-	return selfscore - otherscore + 0.1f * netmoves;
+	return selfscore - otherscore + 0.0f * netmoves;
 }
 
 static std::vector<float> weight_moves(
@@ -266,10 +266,10 @@ static float evaluate(
 	// sort moves based on weights, desc
 	std::vector<int> indices(moves.size());
 	std::iota(indices.begin(), indices.end(), 0);
-	std::sort(indices.begin(), indices.end(),
-		[&](int a, int b) -> bool {
-		return weights[a] > weights[b];
-	});
+	//std::sort(indices.begin(), indices.end(),
+	//	[&](int a, int b) -> bool {
+	//	return weights[a] > weights[b];
+	//});
 
 	float value;
 	if (maxing)

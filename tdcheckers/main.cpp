@@ -165,12 +165,12 @@ void actual_shit()
 {
 	const char initial[] =
 		". x . x . x . x"
-		"x . x . x . . ."
-		". x . x . x . x"
-		". . . . . . . ."
-		". . . o . o . x"
-		"o . o . o . . ."
-		". . . o . o . o"
+		". . x . . . x ."
+		". x . . . x . x"
+		"o . x . x . . ."
+		". . . o . . . o"
+		"o . . . o . . ."
+		". o . . . . . o"
 		"o . o . o . o .";
 	std::string position(initial);
 	checkers::board board{};
