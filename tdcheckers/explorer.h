@@ -7,6 +7,14 @@
 namespace explorer
 {
 
+	struct ttable
+	{
+		int depth;
+		float value;
+		int age;
+	};
+	using transpositiontable = std::unordered_map<uint64_t, ttable>;
+
 	// this is an continuous optimizer
 	class optimizer
 	{
@@ -36,7 +44,7 @@ namespace explorer
 		std::optional<checkers::move> m_best;
 		float m_score;
 		std::vector<checkers::move> m_lines;
-		std::unordered_map<uint64_t, std::pair<int, float>> m_transposition;
+		transpositiontable m_transposition;
 	};
 
 

@@ -164,16 +164,16 @@ const checkers::move &get_move(const std::vector<checkers::move> &moves, checker
 void actual_shit()
 {
 	const char initial[] =
-		". x . x . x . x"
-		". . x . . . x ."
-		". x . . . x . x"
-		"o . x . x . . ."
-		". . . o . . . o"
-		"o . . . o . . ."
-		". o . . . . . o"
-		"o . o . o . o .";
+		" . . . . . . . ."
+		" . . O . . . X ."
+		" . . . x . . . o"
+		" . . O . x . . ."
+		" . o . . . X . ."
+		". . . . . . . ."
+		". . . . . . . ."
+		". . . . . . . .";
 	std::string position(initial);
-	checkers::board board{};
+	checkers::board board{position};
 	checkers::state turn = checkers::state::RED;
 	checkers::state ai = checkers::state::RED;
 
@@ -199,7 +199,7 @@ void actual_shit()
 			checkers::move best = optimizer.get_move().value();
 
 			// manual override
-			std::cout << "Selected " << best.str() << ", override? " << std::endl;
+			std::cout << "\nSelected " << best.str() << ", override? " << std::endl;
 
 			std::string text;
 			std::cin >> text;

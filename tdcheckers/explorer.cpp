@@ -3,6 +3,8 @@
 #include <numeric>
 #include <algorithm>
 #include <random>
+#include <thread>
+#include <mutex>
 
 #include "global.h"
 
@@ -14,7 +16,8 @@ explorer::optimizer::optimizer(checkers::board board, checkers::state turn)
 // ds to store some evaluation globals
 struct evaluate_extra
 {
-	std::unordered_map<uint64_t, std::pair<int, float>> transposition;
+	std::mutex lock;
+	explorer::transpositiontable transposition;
 	size_t exploration;
 };
 
@@ -51,11 +54,23 @@ static float heuristic(
 		7.0f, 6.0f, 6.0f, 6.0f, 6.0f, 6.0f, 6.0f, 7.0f,
 		7.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 7.0f,
 		7.0f, 4.0f, 4.0f, 4.0f, 4.0f, 4.0f, 4.0f, 7.0f,
-		7.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 7.0f,
+		9.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 9.0f,
 		7.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 7.0f,
 		7.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 7.0f,
 		5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f,
 	};
+
+	static float endweights[] = {
+		0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+		0.0f, 1.0f, 2.0f, 2.0f, 2.0f, 2.0f, 1.0f, 1.0f,
+		0.0f, 1.0f, 2.0f, 3.0f, 3.0f, 2.0f, 1.0f, 1.0f,
+		0.0f, 1.0f, 2.0f, 3.0f, 3.0f, 2.0f, 1.0f, 1.0f,
+		0.0f, 1.0f, 2.0f, 2.0f, 2.0f, 2.0f, 1.0f, 1.0f,
+		0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+	};
+
 
 	checkers::state other = checkers::state_flip(player);
 
@@ -75,9 +90,9 @@ static float heuristic(
 	int pieces = countbits(bitboard);
 	if (pieces < 14)
 	{
-		menweight = 1.4f;
+		menweight = 0.4f;
 		kingweight = 2.0f;
-		menvalueweight = 0.0f;
+		menvalueweight = 0.6f;
 	}
 
 	for (int i = 0; i < G_CHECKERS_SIZE; ++i)
@@ -116,6 +131,18 @@ static float heuristic(
 		else
 		{
 			kingvalue = 1.0f;
+			if (pieces < 14)
+			{
+				if ((player == checkers::state::RED) && isplayer || (player == checkers::state::BLACK && !isplayer))
+				{
+					kingvalue = (endweights[i] + 1.0f) / 3.0f;
+				}
+				else
+				{
+					kingvalue = (endweights[64 - i - 1] + 1.0f) / 3.0f;
+				}
+			}
+		
 		}
 
 		if (isplayer)
@@ -151,8 +178,8 @@ static std::vector<float> weight_moves(
 
 	// top hash move
 	const checkers::move *topmove = nullptr;
-	float score = -1e9;
-	for (auto &move : moves)
+	//float score = -1e9;
+	/*for (auto &move : moves)
 	{
 		uint64_t hashed = checkers::board::hash_function()(board.perform_move(move, turn)) ^ std::hash<bool>()(turn != player);
 		if (extra.transposition.count(hashed) != 0)
@@ -164,7 +191,7 @@ static std::vector<float> weight_moves(
 				topmove = &move;
 			}
 		}
-	}
+	}*/
 
 
 	for (auto &move : moves)
@@ -201,7 +228,7 @@ static std::vector<float> weight_moves(
 		{
 			score += 5;
 		}
-		out.push_back(score);
+		out.push_back(0.0f);
 	}
 
 	return out;
@@ -217,7 +244,8 @@ static float evaluate(
 	bool maxing,
 	// extra
 	evaluate_extra &extra,
-	std::vector<checkers::move> &&precalc
+	std::vector<checkers::move> &&precalc,
+	bool top
 )
 {
 	extra.exploration += 1;
@@ -225,26 +253,37 @@ static float evaluate(
 	// use transposition
 	uint64_t hash = checkers::board::hash_function()(board) ^ std::hash<bool>()(turn == player);
 
+	extra.lock.lock();
 	if (extra.transposition.count(hash) != 0)
 	{
 		auto &data = extra.transposition[hash];
 
 		// only return the transposition if the stored depth is higher than remaining
-		if (data.first >= depth_remaining)
-			return data.second;
+		if (data.depth >= depth_remaining)
+		{
+			float value = data.value;
+			extra.lock.unlock();
+			return value;
+		}
 	}
+	extra.lock.unlock();
+
 
 	std::vector<checkers::move> moves = std::move(precalc);
 	if (moves.size() == 0)
 	{
 		if (turn == player)
 		{
-			extra.transposition[hash] = { 1000, -1e6 };
+			extra.lock.lock();
+			extra.transposition[hash] = { 1000, -1e6, 100 };
+			extra.lock.unlock();
 			return -1e6;
 		}
 		else
 		{
-			extra.transposition[hash] = { 1000, 1e6 };
+			extra.lock.lock();
+			extra.transposition[hash] = { 1000, 1e6, 100 };
+			extra.lock.unlock();
 			return 1e6;
 		}
 	}
@@ -252,7 +291,10 @@ static float evaluate(
 	if (depth_remaining == 0)
 	{
 		float score = heuristic(board, turn, player, moves);
-		extra.transposition[hash] = { 0, score };
+		extra.lock.lock();
+		extra.transposition[hash] = { 0, score, 2 };
+		extra.lock.unlock();
+
 		return score;
 	}
 
@@ -266,34 +308,90 @@ static float evaluate(
 	// sort moves based on weights, desc
 	std::vector<int> indices(moves.size());
 	std::iota(indices.begin(), indices.end(), 0);
-	//std::sort(indices.begin(), indices.end(),
-	//	[&](int a, int b) -> bool {
-	//	return weights[a] > weights[b];
-	//});
 
 	float value;
 	if (maxing)
 	{
 		value = alpha;
 
-		for (auto i : indices)
+		if (top)
 		{
-			auto &move = moves[i];
+			std::vector<float> evals;
+			auto eval = [&](int i)
+			{
+				auto &move = moves[i];
+				int newdepth = depth_remaining - 1;
+				if (move.captures.size() != 0 && newdepth == 0)
+				{
+					newdepth = 1;
+				}
 
-			float newvalue = evaluate(
-				board.perform_move(move, turn),
-				nextturn,
-				player,
-				depth_remaining - 1,
-				alpha,
-				beta,
-				false,
-				extra,
-				std::move(cache[i])
-			);
+				float newvalue = evaluate(
+					board.perform_move(move, turn),
+					nextturn,
+					player,
+					newdepth,
+					alpha,
+					beta,
+					false,
+					extra,
+					std::move(cache[i]),
+					false
+				);
 
-			value = std::max(value, newvalue);
+				evals[i] = newvalue;
+			};
+
+			std::vector<std::thread> threads;
+			for (int i = 0; i < moves.size(); ++i)
+			{
+				evals.push_back(0.0f);
+				threads.push_back(std::thread{ eval, i });
+			}
+
+
+			for (int i = 0; i < moves.size(); ++i)
+			{
+				threads[i].join();
+			}
+
+			for (auto val : evals)
+			{
+				value = std::max(value, val);
+			}
 		}
+		else
+		{
+			for (auto i : indices)
+			{
+				auto &move = moves[i];
+				int newdepth = depth_remaining - 1;
+				if (move.captures.size() != 0 && newdepth == 0)
+				{
+					newdepth = 1;
+				}
+
+				float newvalue = evaluate(
+					board.perform_move(move, turn),
+					nextturn,
+					player,
+					newdepth,
+					alpha,
+					beta,
+					false,
+					extra,
+					std::move(cache[i]),
+					false
+				);
+
+				value = std::max(value, newvalue);
+				/*alpha = std::max(alpha, value);
+				if (alpha >= beta)
+					break;*/
+			}
+		}
+
+		
 	}
 	else
 	{
@@ -302,40 +400,66 @@ static float evaluate(
 		for (auto i : indices)
 		{
 			auto &move = moves[i];
+			int newdepth = depth_remaining - 1;
+			if (move.captures.size() != 0 && newdepth == 0)
+			{
+				newdepth = 1;
+			}
 
 			float newvalue = evaluate(
 				board.perform_move(move, turn),
 				nextturn,
 				player,
-				depth_remaining - 1,
+				newdepth,
 				alpha,
 				beta,
 				true,
 				extra,
-				std::move(cache[i])
+				std::move(cache[i]),
+				false
 			);
 
 			value = std::min(value, newvalue);
+			/*beta = std::min(beta, value);
+			if (beta <= alpha)
+				break;*/
 		}
 	}
 
 	// update transposition
+	extra.lock.lock();
 	if (extra.transposition.count(hash) != 0)
 	{
 		auto &data = extra.transposition[hash];
-		if (data.first < depth_remaining)
-			extra.transposition[hash] = { depth_remaining, value };
+		if (data.depth < depth_remaining)
+			extra.transposition[hash] = { depth_remaining, value, 4 };
 	}
 	else
 	{
-		extra.transposition[hash] = { depth_remaining, value };
+		extra.transposition[hash] = { depth_remaining, value, 4 };
 	}
+	extra.lock.unlock();
 
 	return value;
 }
 
 void explorer::optimizer::compute_score(checkers::state turn)
 {
+	// clear transposition table
+	auto it = m_transposition.begin();
+	while (it != m_transposition.end())
+	{
+		it->second.age -= 1;
+		if (it->second.age <= 0)
+		{
+			m_transposition.erase(it++);
+		}
+		else
+		{
+			++it;
+		}
+	}
+
 	// scores follow the definition
 	// + for red winning
 	// - for black winning
@@ -348,6 +472,7 @@ void explorer::optimizer::compute_score(checkers::state turn)
 
 
 	evaluate_extra extra{
+		{},
 		m_transposition,
 		0
 	};
@@ -358,6 +483,7 @@ void explorer::optimizer::compute_score(checkers::state turn)
 	checkers::state nextturn = checkers::state_flip(turn);
 	auto hashing = checkers::board::hash_function();
 
+	std::cout << "---- Depths ----" << std::endl;
 	// iterative deepining
 	int startdepth = 0;
 	int enddepth = 16;
@@ -374,11 +500,12 @@ void explorer::optimizer::compute_score(checkers::state turn)
 			1e9,
 			true,
 			extra,
-			m_board.compute_moves(turn)
+			m_board.compute_moves(turn),
+			true
 		);
 
 		// debug
-		std::cout << "At depth " << depth << ", score = " << m_score << std::endl;
+		std::cout << "At " << depth << ", score = " << m_score << std::endl;
 		std::cout << "  " << extra.exploration << std::endl;
 
 
@@ -412,12 +539,15 @@ void explorer::optimizer::compute_score(checkers::state turn)
 						continue;
 
 					auto &data = extra.transposition[hash];
-					if (data.second > score)
+					if (data.value > score)
 					{
 						best = j;
-						score = data.second;
+						score = data.value;
 					}
 				}
+
+				if (best == -1)
+					break;
 
 				std::cout << moves[best].str() << " ";
 
@@ -436,12 +566,15 @@ void explorer::optimizer::compute_score(checkers::state turn)
 						continue;
 
 					auto &data = extra.transposition[hash];
-					if (data.second < score)
+					if (data.value < score)
 					{
 						best = j;
-						score = data.second;
+						score = data.value;
 					}
 				}
+
+				if (best == -1)
+					break;
 
 				std::cout << moves[best].str() << " ";
 				b = b.perform_move(moves[best], t);
@@ -453,7 +586,7 @@ void explorer::optimizer::compute_score(checkers::state turn)
 		std::cout << std::endl;
 
 		// exit when the score is sure
-		if (abs(m_score) > 50.0f || extra.exploration > 3000000)
+		if (abs(m_score) > 50.0f || extra.exploration > 5000000)
 			break;
 	}
 
@@ -462,7 +595,7 @@ void explorer::optimizer::compute_score(checkers::state turn)
 	m_transposition = extra.transposition;
 
 	// compute best move
-	std::cout << "Moves: " << std::endl;
+	std::cout << "\n----- Evaluations -----" << std::endl;
 
 	int best = -1;
 	float score = -1e9;
@@ -473,10 +606,10 @@ void explorer::optimizer::compute_score(checkers::state turn)
 			continue;
 
 		auto &data = extra.transposition[hash];
-		std::cout << moves[j].str() << " is " << data.second << std::endl;
-		if (data.second > score || (dist(rng) < 0.3f && data.second == score))
+		std::cout << moves[j].str() << " is " << data.value << std::endl;
+		if (data.value > score || (dist(rng) < 0.3f && data.value == score))
 		{
-			score = data.second;
+			score = data.value;
 			best = j;
 		}
 	}
@@ -489,9 +622,9 @@ void explorer::optimizer::compute_score(checkers::state turn)
 	}
 
 	// print line
-
-
 	m_best = std::optional<checkers::move>(moves[best]);
+
+
 }
 
 void explorer::optimizer::update_board(checkers::board newboard)
