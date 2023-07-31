@@ -2,10 +2,18 @@
 
 #include "checkers.h"
 
+// Constant for the partial board mask
 #define G_BOARDMASKS_SIZE (4*8)
 
 namespace global
 {
+	// Provides constant time looping of the board pieces
+	// Usage:
+	//		auto mask = boardmask();
+	//      for (int i = 0; i < mask.size; ++i)
+	//      {
+	//            uint64_t m = mask.masks[i];
+	//            ...
 	struct boardmask
 	{
 		constexpr boardmask() : masks()

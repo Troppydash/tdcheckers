@@ -105,6 +105,7 @@ checkers::move::move(uint64_t from, uint64_t to, std::vector<uint64_t> captures,
 {}
 
 // shorthand string constructor
+// this shit has no error checking
 checkers::move::move(std::string text)
 {
 	// has the format
@@ -586,7 +587,6 @@ checkers::board checkers::board::perform_move(const checkers::move &move, state 
 	// move player piece
 	player &= ~move.from;
 	player |= move.to;
-	//player ^= (move.from | move.to);
 
 	// remove king
 	uint64_t king = m_kings & (~move.from);
@@ -602,7 +602,6 @@ checkers::board checkers::board::perform_move(const checkers::move &move, state 
 		other &= ~cap;
 		// also remove king on the captures
 		king &= ~cap;
-
 	}
 
 	if (turn == state::RED)
@@ -630,7 +629,6 @@ checkers::state checkers::board::get_state(state turn) const
 	}
 
 	// we do not deal with draws
-
 	return state::NONE;
 }
 

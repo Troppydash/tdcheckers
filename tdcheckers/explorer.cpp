@@ -16,13 +16,18 @@ explorer::optimizer::optimizer(checkers::board board, checkers::state turn)
 // ds to store some evaluation globals
 struct evaluate_extra
 {
+	// lock for the transposition table
 	std::mutex lock;
+
+	// the transposition table
 	explorer::transpositiontable transposition;
+
+	// number of board positions explored
 	size_t exploration;
 };
 
 
-// helper function
+// helper function to get the sign of the function
 template <typename T> int sgn(T val) {
 	return (T(0) < val) - (val < T(0));
 }
@@ -42,6 +47,7 @@ int countbits(uint64_t bitboard)
 }
 
 
+// Returns the hueristic evaluation of the board
 static float heuristic(
 	checkers::board board,
 	checkers::state turn,
@@ -157,9 +163,10 @@ static float heuristic(
 
 	float netmoves = (float)moves.size() - (float)board.compute_moves(checkers::state_flip(turn)).size();
 
-	return selfscore - otherscore + 0.0f * netmoves;
+	return selfscore - otherscore;
 }
 
+// Returns the weighting of the moves
 static std::vector<float> weight_moves(
 	checkers::board board, 
 	const std::vector<checkers::move> &moves, 
@@ -234,7 +241,7 @@ static std::vector<float> weight_moves(
 	return out;
 }
 
-// alpha-beta evaluation function
+// alpha-beta evaluation function (or at least, it should be)
 static float evaluate(
 	checkers::board board,
 	checkers::state turn,
@@ -443,13 +450,17 @@ static float evaluate(
 	return value;
 }
 
+
 void explorer::optimizer::compute_score(checkers::state turn)
 {
-	// clear transposition table
+	// purge transposition table entries that ran out of age
 	auto it = m_transposition.begin();
 	while (it != m_transposition.end())
 	{
+		// decrement age
 		it->second.age -= 1;
+
+		// remove the element if it ran out of age
 		if (it->second.age <= 0)
 		{
 			m_transposition.erase(it++);
@@ -526,12 +537,11 @@ void explorer::optimizer::compute_score(checkers::state turn)
 		bool maxing = true;
 		for (int i = 0; i < depth - 1; ++i)
 		{
-
 			auto moves = b.compute_moves(t);
 			if (maxing)
 			{
 				int best = -1;
-				int score = -1e9;
+				float score = -1e9;
 				for (int j = 0; j < moves.size(); ++j)
 				{
 					uint64_t hash = hashing(b.perform_move(moves[j], t)) ^ std::hash<bool>()(t != m_player);
@@ -558,7 +568,7 @@ void explorer::optimizer::compute_score(checkers::state turn)
 			else
 			{
 				int best = -1;
-				int score = 1e9;
+				float score = 1e9;
 				for (int j = 0; j < moves.size(); ++j)
 				{
 					uint64_t hash = hashing(b.perform_move(moves[j], t)) ^ std::hash<bool>()(t != m_player);
@@ -581,12 +591,11 @@ void explorer::optimizer::compute_score(checkers::state turn)
 				t = checkers::state_flip(t);
 				maxing = !maxing;
 			}
-		
 		}
 		std::cout << std::endl;
 
 		// exit when the score is sure
-		if (abs(m_score) > 50.0f || extra.exploration > 5000000)
+		if (abs(m_score) > 50.0f || extra.exploration > 2000000)
 			break;
 	}
 
@@ -621,10 +630,7 @@ void explorer::optimizer::compute_score(checkers::state turn)
 		return;
 	}
 
-	// print line
 	m_best = std::optional<checkers::move>(moves[best]);
-
-
 }
 
 void explorer::optimizer::update_board(checkers::board newboard)

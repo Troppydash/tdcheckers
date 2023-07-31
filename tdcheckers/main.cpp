@@ -173,7 +173,7 @@ void actual_shit()
 		". . . . . . . ."
 		". . . . . . . .";
 	std::string position(initial);
-	checkers::board board{position};
+	checkers::board board{};
 	checkers::state turn = checkers::state::RED;
 	checkers::state ai = checkers::state::RED;
 
@@ -231,29 +231,14 @@ void actual_shit()
 			turn = checkers::state_flip(turn);
 		}
 	}
-
-
-
-
-
-
-
-
-
-
-
-
 }
 
 
 int main()
 {
 	
-	actual_shit();
-	
-	//testing::explore_moves({}, checkers::state::RED);
-
-	return 0;
+	//actual_shit();
+	//return 0;
 
 	checkers::state turn = checkers::state::BLACK;
 	
@@ -267,10 +252,10 @@ int main()
 		". o . o . o . o"
 		"o . o . o . o .";
 	std::string position(initial);
-	checkers::board board{position};
-	//testing::play_itself(board, checkers::state::RED);
+	checkers::board board{};
+	testing::play_itself(board, checkers::state::RED);
 	//testing::explore_moves(board, checkers::state::RED);
-	testing::analyze(board, checkers::state::RED);
+	//testing::analyze(board, checkers::state::RED);
 	return 0;
 
 

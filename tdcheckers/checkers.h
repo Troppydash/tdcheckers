@@ -33,21 +33,27 @@
 			The player with no piece loses
 		Drawing is occured with 3 fold repetition and 40 moves with no captures
 
-
-
-
-
 */
 
+// The width of the checkers board
 #define G_CHECKERS_WIDTH (8)
+
+// The size of the check board
 #define G_CHECKERS_SIZE (8*8)
+
+// The character for the red piece
 #define G_REDPIECE ('o')
+
+// The character for the black piece
 #define G_BLACKPIECE ('x')
+
+// The character for the blank piece
 #define G_BLANKPIECE ('.')
+
 
 namespace checkers
 {
-	
+	// Represents the state of the board, as well as the turn	
 	enum class state
 	{
 		RED = 0,
@@ -56,11 +62,14 @@ namespace checkers
 		NONE,
 	};
 
-	// return the string representation of the state
+	// Returns the string representation of the state
 	std::string state_repr(state s);
+
+	// Returns the next turn
 	state state_flip(state s);
 
 
+	// Represents a move
 	struct move
 	{
 		// the start of the move
@@ -75,6 +84,7 @@ namespace checkers
 		// whether the piece became a king (not if it was a king)
 		bool king;
 
+		// default constructor
 		move()
 			: from(0ull), to(0ull), captures({}), king(false)
 		{}
@@ -120,7 +130,7 @@ namespace checkers
 
 
 
-
+	// Represents the checkers board and its pieces
 	class board
 	{
 	public:
@@ -152,6 +162,7 @@ namespace checkers
 		// note: this does not handle drawing yet
 		state get_state(state turn) const;
 
+		// Equality overload
 		bool operator==(const board &other) const
 		{
 			return m_red == other.m_red && m_black == other.m_black && m_kings == other.m_kings;
