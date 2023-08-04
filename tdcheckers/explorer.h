@@ -9,7 +9,13 @@ namespace explorer
 
 	struct ttable
 	{
+		// depth of search done
 		int depth;
+		// lower bound
+		float alpha;
+		// upper bound
+		float beta;
+		// age of this entry (entry deleted when age <= 0)
 		float value;
 		int age;
 	};

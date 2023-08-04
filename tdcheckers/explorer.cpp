@@ -243,15 +243,23 @@ static std::vector<float> weight_moves(
 
 // alpha-beta evaluation function (or at least, it should be)
 static float evaluate(
+	// the current board state
 	checkers::board board,
+	// the turn
 	checkers::state turn,
+	// the player to compute score against
 	checkers::state player,
+	// depth search remaining
 	int depth_remaining,
+	// alpha beta values
 	float alpha, float beta,
+	// whether to min or max
 	bool maxing,
-	// extra
+	// extra info
 	evaluate_extra &extra,
+	// precalculated moves
 	std::vector<checkers::move> &&precalc,
+	// whether this is the top level call
 	bool top
 )
 {
@@ -260,6 +268,7 @@ static float evaluate(
 	// use transposition
 	uint64_t hash = checkers::board::hash_function()(board) ^ std::hash<bool>()(turn == player);
 
+	// transposition lookup
 	extra.lock.lock();
 	if (extra.transposition.count(hash) != 0)
 	{
@@ -268,9 +277,20 @@ static float evaluate(
 		// only return the transposition if the stored depth is higher than remaining
 		if (data.depth >= depth_remaining)
 		{
-			float value = data.value;
-			extra.lock.unlock();
-			return value;
+			if (data.alpha >= beta)
+			{
+				extra.lock.unlock();
+				return data.alpha;
+			}
+			
+			if (data.beta <= alpha)
+			{
+				extra.lock.unlock();
+				return data.beta;
+			}
+
+			alpha = std::max(alpha, data.alpha);
+			beta = std::min(beta, data.beta);
 		}
 	}
 	extra.lock.unlock();
@@ -281,16 +301,16 @@ static float evaluate(
 	{
 		if (turn == player)
 		{
-			extra.lock.lock();
+			/*extra.lock.lock();
 			extra.transposition[hash] = { 1000, -1e6, 100 };
-			extra.lock.unlock();
+			extra.lock.unlock();*/
 			return -1e6;
 		}
 		else
 		{
-			extra.lock.lock();
+			/*extra.lock.lock();
 			extra.transposition[hash] = { 1000, 1e6, 100 };
-			extra.lock.unlock();
+			extra.lock.unlock();*/
 			return 1e6;
 		}
 	}
@@ -298,9 +318,9 @@ static float evaluate(
 	if (depth_remaining == 0)
 	{
 		float score = heuristic(board, turn, player, moves);
-		extra.lock.lock();
+		/*extra.lock.lock();
 		extra.transposition[hash] = { 0, score, 2 };
-		extra.lock.unlock();
+		extra.lock.unlock();*/
 
 		return score;
 	}
@@ -320,6 +340,7 @@ static float evaluate(
 	if (maxing)
 	{
 		value = alpha;
+		float a = alpha;
 
 		if (top)
 		{
@@ -383,7 +404,7 @@ static float evaluate(
 					nextturn,
 					player,
 					newdepth,
-					alpha,
+					a,
 					beta,
 					false,
 					extra,
@@ -392,17 +413,16 @@ static float evaluate(
 				);
 
 				value = std::max(value, newvalue);
-				/*alpha = std::max(alpha, value);
-				if (alpha >= beta)
-					break;*/
+				a = std::max(a, newvalue);
+				if (beta <= a)
+					break;
 			}
 		}
-
-
 	}
 	else
 	{
 		value = beta;
+		float b = beta;
 
 		for (auto i : indices)
 		{
@@ -419,7 +439,7 @@ static float evaluate(
 				player,
 				newdepth,
 				alpha,
-				beta,
+				b,
 				true,
 				extra,
 				std::move(cache[i]),
@@ -427,24 +447,52 @@ static float evaluate(
 			);
 
 			value = std::min(value, newvalue);
-			/*beta = std::min(beta, value);
-			if (beta <= alpha)
-				break;*/
+			b = std::min(b, newvalue);
+			if (b <= alpha)
+				break;
 		}
 	}
 
 	// update transposition
 	extra.lock.lock();
-	if (extra.transposition.count(hash) != 0)
+
+	// add the entry if it exists
+	if (extra.transposition.count(hash) == 0)
 	{
-		auto &data = extra.transposition[hash];
-		if (data.depth < depth_remaining)
-			extra.transposition[hash] = { depth_remaining, value, 4 };
+		extra.transposition[hash] = { depth_remaining, -1e9, 1e9, value, 4 };
 	}
 	else
 	{
-		extra.transposition[hash] = { depth_remaining, value, 4 };
+		// ignore the saving if depth is too low?
+		if (extra.transposition[hash].depth > depth_remaining)
+		{
+			extra.lock.unlock();
+			return value;
+		}
+
+		extra.transposition[hash].value = value;
 	}
+
+	auto &data = extra.transposition[hash];
+	// fail low
+	if (value <= alpha)
+	{
+		data.beta = value;
+	}
+
+	// fail within range
+	if (value > alpha && value < beta)
+	{
+		data.alpha = value;
+		data.beta = value;
+	}
+
+	// fail high
+	if (value >= beta)
+	{
+		data.alpha = value;
+	}
+
 	extra.lock.unlock();
 
 	return value;
@@ -596,7 +644,7 @@ void explorer::optimizer::compute_score(checkers::state turn, bool verbose)
 			std::cout << "\n\n";
 
 		// exit when the score is sure
-		if (abs(m_score) > 50.0f || extra.exploration > 20000000)
+		if (abs(m_score) > 50.0f || extra.exploration > 4000000)
 			break;
 	}
 

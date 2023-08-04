@@ -1,7 +1,6 @@
 
 #include <iostream>
 #include "checkers.h"
-
 #include "tester.h"
 #include "explorer.h"
 
@@ -237,8 +236,8 @@ void actual_shit()
 int main()
 {
 	
-	//actual_shit();
-	//return 0;
+	actual_shit();
+	return 0;
 
 	checkers::state turn = checkers::state::BLACK;
 	
