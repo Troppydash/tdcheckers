@@ -266,7 +266,7 @@ void testing::analyze(checkers::board position, checkers::state turn)
 
 	explorer::optimizer optimizer{position, turn};
 
-	optimizer.compute_score(turn);
+	optimizer.compute_score(turn, true);
 
 	std::cout << "Score is " << optimizer.get_score() << std::endl;
 	std::cout << "Best is " << optimizer.get_move().value().str() << std::endl;

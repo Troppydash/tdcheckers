@@ -24,7 +24,7 @@ namespace explorer
 
 		// runs the computation of the position scores
 		// implicitly sets the values in the optimizer state
-		void compute_score(checkers::state turn);
+		void compute_score(checkers::state turn, bool verbose = true);
 
 		void update_board(checkers::board newboard);
 

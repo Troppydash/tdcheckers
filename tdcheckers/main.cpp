@@ -252,10 +252,10 @@ int main()
 		". o . o . o . o"
 		"o . o . o . o .";
 	std::string position(initial);
-	checkers::board board{};
-	testing::play_itself(board, checkers::state::RED);
+	checkers::board board{position};
+	//testing::play_itself(board, checkers::state::RED);
 	//testing::explore_moves(board, checkers::state::RED);
-	//testing::analyze(board, checkers::state::RED);
+	testing::analyze(board, checkers::state::RED);
 	return 0;
 
 

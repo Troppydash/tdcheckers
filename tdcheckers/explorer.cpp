@@ -88,7 +88,7 @@ static float heuristic(
 	float selfscore = 0.0f;
 	float otherscore = 0.0f;
 
-	
+
 	float menweight = 0.4f;
 	float menvalueweight = 0.6f;
 	float kingweight = 2.0f;
@@ -148,7 +148,7 @@ static float heuristic(
 					kingvalue = (endweights[64 - i - 1] + 1.0f) / 3.0f;
 				}
 			}
-		
+
 		}
 
 		if (isplayer)
@@ -168,8 +168,8 @@ static float heuristic(
 
 // Returns the weighting of the moves
 static std::vector<float> weight_moves(
-	checkers::board board, 
-	const std::vector<checkers::move> &moves, 
+	checkers::board board,
+	const std::vector<checkers::move> &moves,
 	checkers::state turn,
 	checkers::state player,
 	std::vector<std::vector<checkers::move>> &cache,
@@ -398,7 +398,7 @@ static float evaluate(
 			}
 		}
 
-		
+
 	}
 	else
 	{
@@ -451,7 +451,7 @@ static float evaluate(
 }
 
 
-void explorer::optimizer::compute_score(checkers::state turn)
+void explorer::optimizer::compute_score(checkers::state turn, bool verbose)
 {
 	// purge transposition table entries that ran out of age
 	auto it = m_transposition.begin();
@@ -482,19 +482,23 @@ void explorer::optimizer::compute_score(checkers::state turn)
 	std::uniform_real_distribution<float> dist(0.0, 1.0);
 
 
+	// set extra data
 	evaluate_extra extra{
 		{},
 		m_transposition,
 		0
 	};
+	m_score = 0;  // reset score
 
-	m_score = 0;
-
+	// compute moves and other temporary constants
 	auto moves = m_board.compute_moves(turn);
 	checkers::state nextturn = checkers::state_flip(turn);
 	auto hashing = checkers::board::hash_function();
 
-	std::cout << "---- Depths ----" << std::endl;
+	if (verbose)
+		std::cout << "---- Depths ----" << std::endl;
+
+
 	// iterative deepining
 	int startdepth = 0;
 	int enddepth = 16;
@@ -515,22 +519,14 @@ void explorer::optimizer::compute_score(checkers::state turn)
 			true
 		);
 
-		// debug
-		std::cout << "At " << depth << ", score = " << m_score << std::endl;
-		std::cout << "  " << extra.exploration << std::endl;
-
-
-		/*for (int j = 0; j < moves.size(); ++j)
+		if (verbose)
 		{
-			uint64_t hash = hashing(m_board.perform_move(moves[j], turn)) ^ std::hash<bool>()(false);
-			if (extra.transposition.count(hash) == 0)
-				continue;
+			std::cout << "At " << depth << ", score = " << m_score << std::endl;
+			std::cout << "  " << extra.exploration << std::endl;
+			std::cout << "-- best line --" << std::endl;
+		}
 
-			auto &data = extra.transposition[hash];
-			std::cout << moves[j].str() << " is " << data.second << std::endl;
-		}*/
-
-		// print wtf it is thinking
+		// print wtf it is thinking, print the best line
 		checkers::board b = m_board;
 		checkers::state t = turn;
 
@@ -559,7 +555,8 @@ void explorer::optimizer::compute_score(checkers::state turn)
 				if (best == -1)
 					break;
 
-				std::cout << moves[best].str() << " ";
+				if (verbose)
+					std::cout << moves[best].str() << " ";
 
 				b = b.perform_move(moves[best], t);
 				t = checkers::state_flip(t);
@@ -586,16 +583,20 @@ void explorer::optimizer::compute_score(checkers::state turn)
 				if (best == -1)
 					break;
 
-				std::cout << moves[best].str() << " ";
+				if (verbose)
+					std::cout << moves[best].str() << " ";
+
 				b = b.perform_move(moves[best], t);
 				t = checkers::state_flip(t);
 				maxing = !maxing;
 			}
 		}
-		std::cout << std::endl;
+
+		if (verbose)
+			std::cout << "\n\n";
 
 		// exit when the score is sure
-		if (abs(m_score) > 50.0f || extra.exploration > 2000000)
+		if (abs(m_score) > 50.0f || extra.exploration > 20000000)
 			break;
 	}
 
@@ -604,7 +605,8 @@ void explorer::optimizer::compute_score(checkers::state turn)
 	m_transposition = extra.transposition;
 
 	// compute best move
-	std::cout << "\n----- Evaluations -----" << std::endl;
+	if (verbose)
+		std::cout << "\n----- Evaluations -----" << std::endl;
 
 	int best = -1;
 	float score = -1e9;
@@ -615,12 +617,14 @@ void explorer::optimizer::compute_score(checkers::state turn)
 			continue;
 
 		auto &data = extra.transposition[hash];
-		std::cout << moves[j].str() << " is " << data.value << std::endl;
 		if (data.value > score || (dist(rng) < 0.3f && data.value == score))
 		{
 			score = data.value;
 			best = j;
 		}
+
+		if (verbose)
+			std::cout << moves[j].str() << " is " << data.value << std::endl;
 	}
 
 	// if nothing found
