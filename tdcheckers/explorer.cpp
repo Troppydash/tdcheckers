@@ -24,6 +24,8 @@ struct evaluate_extra
 
 	// number of board positions explored
 	size_t exploration;
+
+	std::optional<checkers::move> best;
 };
 
 
@@ -51,8 +53,7 @@ int countbits(uint64_t bitboard)
 static float heuristic(
 	checkers::board board,
 	checkers::state turn,
-	checkers::state player,
-	const std::vector<checkers::move> &moves
+	checkers::state player
 )
 {
 	static float weights[] = {
@@ -161,7 +162,7 @@ static float heuristic(
 		}
 	}
 
-	float netmoves = (float)moves.size() - (float)board.compute_moves(checkers::state_flip(turn)).size();
+	//float netmoves = (float)moves.size() - (float)board.compute_moves(checkers::state_flip(turn)).size();
 
 	return selfscore - otherscore;
 }
@@ -172,7 +173,6 @@ static std::vector<float> weight_moves(
 	const std::vector<checkers::move> &moves,
 	checkers::state turn,
 	checkers::state player,
-	std::vector<std::vector<checkers::move>> &cache,
 	evaluate_extra &extra
 )
 {
@@ -181,67 +181,18 @@ static std::vector<float> weight_moves(
 
 	checkers::state other = checkers::state_flip(turn);
 
-	uint64_t kings = board.get_kings(turn);
-
-	// top hash move
-	const checkers::move *topmove = nullptr;
-	//float score = -1e9;
-	/*for (auto &move : moves)
-	{
-		uint64_t hashed = checkers::board::hash_function()(board.perform_move(move, turn)) ^ std::hash<bool>()(turn != player);
-		if (extra.transposition.count(hashed) != 0)
-		{
-			float value = extra.transposition[hashed].second;
-			if (value > score)
-			{
-				score = value;
-				topmove = &move;
-			}
-		}
-	}*/
-
 
 	for (auto &move : moves)
 	{
-		float score = 0.0f;
-
-		// king promotions are good
-		if (move.king && (kings & move.from) == 0)
-			score += 0.5f;
-
-		// king moves are good
-		if (move.king)
-			score += 0.02f;
-
-		// captures are good
-		if (move.captures.size() == 1)
-			score += 0.2f;
-		else
-			score += 0.3f * move.captures.size();
-
-		// encourage jumping into others
-		checkers::board after = board.perform_move(move, turn);
-		auto aftermoves = after.compute_moves(other);
-		size_t aftercaptures = 0;
-		for (auto &m : aftermoves)
-		{
-			aftercaptures += m.captures.size();
-		}
-		score -= 0.2f * aftercaptures;
-
-		cache.push_back(std::move(aftermoves));
-
-		if (topmove != nullptr && move == *topmove)
-		{
-			score += 5;
-		}
-		out.push_back(0.0f);
+		out.push_back(heuristic(board.perform_move(move, turn), other, player));
 	}
 
 	return out;
 }
 
 // alpha-beta evaluation function (or at least, it should be)
+// whether this is the top level call
+template <bool TOP>
 static float evaluate(
 	// the current board state
 	checkers::board board,
@@ -258,9 +209,7 @@ static float evaluate(
 	// extra info
 	evaluate_extra &extra,
 	// precalculated moves
-	std::vector<checkers::move> &&precalc,
-	// whether this is the top level call
-	bool top
+	std::vector<checkers::move> &&precalc
 )
 {
 	extra.exploration += 1;
@@ -269,31 +218,35 @@ static float evaluate(
 	uint64_t hash = checkers::board::hash_function()(board) ^ std::hash<bool>()(turn == player);
 
 	// transposition lookup
-	extra.lock.lock();
-	if (extra.transposition.count(hash) != 0)
+	if (!TOP)
 	{
-		auto &data = extra.transposition[hash];
-
-		// only return the transposition if the stored depth is higher than remaining
-		if (data.depth >= depth_remaining)
+		extra.lock.lock();
+		if (extra.transposition.count(hash) != 0)
 		{
-			if (data.alpha >= beta)
-			{
-				extra.lock.unlock();
-				return data.alpha;
-			}
-			
-			if (data.beta <= alpha)
-			{
-				extra.lock.unlock();
-				return data.beta;
-			}
+			auto &data = extra.transposition[hash];
 
-			alpha = std::max(alpha, data.alpha);
-			beta = std::min(beta, data.beta);
+			// only return the transposition if the stored depth is higher than remaining
+			if (data.depth >= depth_remaining)
+			{
+				if (data.alpha >= beta)
+				{
+					extra.lock.unlock();
+					return data.alpha;
+				}
+
+				if (data.beta <= alpha)
+				{
+					extra.lock.unlock();
+					return data.beta;
+				}
+
+				alpha = std::max(alpha, data.alpha);
+				beta = std::min(beta, data.beta);
+			}
 		}
+		extra.lock.unlock();
 	}
-	extra.lock.unlock();
+	
 
 
 	std::vector<checkers::move> moves = std::move(precalc);
@@ -317,7 +270,7 @@ static float evaluate(
 
 	if (depth_remaining == 0)
 	{
-		float score = heuristic(board, turn, player, moves);
+		float score = heuristic(board, turn, player);
 		/*extra.lock.lock();
 		extra.transposition[hash] = { 0, score, 2 };
 		extra.lock.unlock();*/
@@ -329,12 +282,23 @@ static float evaluate(
 	checkers::state nextturn = checkers::state_flip(turn);
 
 	// move ordering
-	std::vector<std::vector<checkers::move>> cache;
-	auto weights = weight_moves(board, moves, turn, player, cache, extra);
-
-	// sort moves based on weights, desc
 	std::vector<int> indices(moves.size());
 	std::iota(indices.begin(), indices.end(), 0);
+	if (!TOP)
+	{
+		// sort moves based on weights, desc
+		auto weights = weight_moves(board, moves, turn, player, extra);
+		std::sort(indices.begin(), indices.end(), [&](int a, int b)
+		{
+			if (maxing)
+			{
+				return weights[a] > weights[b];
+			}
+			return weights[a] < weights[b];
+		});
+	}
+
+
 
 	float value;
 	if (maxing)
@@ -342,7 +306,7 @@ static float evaluate(
 		value = alpha;
 		float a = alpha;
 
-		if (top)
+		if (TOP)
 		{
 			std::vector<float> evals;
 			auto eval = [&](int i)
@@ -354,7 +318,7 @@ static float evaluate(
 					newdepth = 1;
 				}
 
-				float newvalue = evaluate(
+				float newvalue = evaluate<false>(
 					board.perform_move(move, turn),
 					nextturn,
 					player,
@@ -363,8 +327,7 @@ static float evaluate(
 					beta,
 					false,
 					extra,
-					std::move(cache[i]),
-					false
+					board.perform_move(move, turn).compute_moves(nextturn)
 				);
 
 				evals[i] = newvalue;
@@ -383,9 +346,13 @@ static float evaluate(
 				threads[i].join();
 			}
 
-			for (auto val : evals)
+			for (int i = 0; i < moves.size(); ++i)
 			{
-				value = std::max(value, val);
+				if (evals[i] > value)
+				{
+					value = evals[i];
+					extra.best = moves[i];
+				}
 			}
 		}
 		else
@@ -399,7 +366,7 @@ static float evaluate(
 					newdepth = 1;
 				}
 
-				float newvalue = evaluate(
+				float newvalue = evaluate<false>(
 					board.perform_move(move, turn),
 					nextturn,
 					player,
@@ -408,8 +375,7 @@ static float evaluate(
 					beta,
 					false,
 					extra,
-					std::move(cache[i]),
-					false
+					board.perform_move(move, turn).compute_moves(nextturn)
 				);
 
 				value = std::max(value, newvalue);
@@ -428,12 +394,12 @@ static float evaluate(
 		{
 			auto &move = moves[i];
 			int newdepth = depth_remaining - 1;
-			if (move.captures.size() != 0 && newdepth == 0)
+			if (move.captures.size() > 0 && newdepth == 0)
 			{
 				newdepth = 1;
 			}
 
-			float newvalue = evaluate(
+			float newvalue = evaluate<false>(
 				board.perform_move(move, turn),
 				nextturn,
 				player,
@@ -442,8 +408,7 @@ static float evaluate(
 				b,
 				true,
 				extra,
-				std::move(cache[i]),
-				false
+				board.perform_move(move, turn).compute_moves(nextturn)
 			);
 
 			value = std::min(value, newvalue);
@@ -471,6 +436,7 @@ static float evaluate(
 		}
 
 		extra.transposition[hash].value = value;
+		extra.transposition[hash].depth = depth_remaining;
 	}
 
 	auto &data = extra.transposition[hash];
@@ -534,7 +500,8 @@ void explorer::optimizer::compute_score(checkers::state turn, bool verbose)
 	evaluate_extra extra{
 		{},
 		m_transposition,
-		0
+		0,
+		std::nullopt
 	};
 	m_score = 0;  // reset score
 
@@ -554,7 +521,7 @@ void explorer::optimizer::compute_score(checkers::state turn, bool verbose)
 	{
 		extra.exploration = 0;
 
-		m_score = evaluate(
+		m_score = evaluate<true>(
 			m_board,
 			turn,
 			m_player,
@@ -563,8 +530,7 @@ void explorer::optimizer::compute_score(checkers::state turn, bool verbose)
 			1e9,
 			true,
 			extra,
-			m_board.compute_moves(turn),
-			true
+			m_board.compute_moves(turn)
 		);
 
 		if (verbose)
@@ -656,6 +622,9 @@ void explorer::optimizer::compute_score(checkers::state turn, bool verbose)
 	if (verbose)
 		std::cout << "\n----- Evaluations -----" << std::endl;
 
+	m_best = extra.best;
+
+
 	int best = -1;
 	float score = -1e9;
 	for (int j = 0; j < moves.size(); ++j)
@@ -674,6 +643,8 @@ void explorer::optimizer::compute_score(checkers::state turn, bool verbose)
 		if (verbose)
 			std::cout << moves[j].str() << " is " << data.value << std::endl;
 	}
+
+	return;
 
 	// if nothing found
 	if (best == -1)
