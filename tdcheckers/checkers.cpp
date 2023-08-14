@@ -479,7 +479,7 @@ std::vector<checkers::move> checkers::board::compute_moves(state turn) const
 	int width = G_CHECKERS_WIDTH;
 
 	// for storing the available directions
-	static uint64_t directions[4];
+	uint64_t directions[4];
 
 	// for each player piece
 	constexpr auto masks = global::boardmask();

@@ -231,7 +231,7 @@ void testing::play_itself(checkers::board position, checkers::state turn)
 		if (isfirst)
 		{
 			first.update_board(position);
-			first.compute_score(turn);
+			first.compute_score(turn, false);
 
 			std::cout << "Score1 = " << first.get_score() << std::endl;
 
@@ -245,7 +245,7 @@ void testing::play_itself(checkers::board position, checkers::state turn)
 		else
 		{
 			second.update_board(position);
-			second.compute_score(turn);
+			second.compute_score(turn, false);
 
 			std::cout << "Score2 = " << second.get_score() << std::endl;
 

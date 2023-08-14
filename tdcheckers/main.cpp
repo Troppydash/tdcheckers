@@ -163,16 +163,16 @@ const checkers::move &get_move(const std::vector<checkers::move> &moves, checker
 void actual_shit()
 {
 	const char initial[] =
-		". . . . . x . x"
-		". . x . x . . ."
+		". . . O . . . x"
+		"x . x . . . . ."
 		". x . x . x . x"
 		"o . x . . . x ."
-		". o . o . x . o"
-		"o . o . o . . ."
-		". . . o . o . o"
-		". . . . . . o .";
+		". o . . . o . o"
+		"o . . . O . o ."
+		". o . . . . . ."
+		". . . . o . o .";
 	std::string position(initial);
-	checkers::board board{};
+	checkers::board board{position};
 	checkers::state turn = checkers::state::RED;
 	checkers::state ai = checkers::state::RED;
 
@@ -188,7 +188,6 @@ void actual_shit()
 		std::cout << board.repr() << std::endl;
 
 		auto moves = board.compute_moves(turn);
-
 
 		if (turn == ai)
 		{
@@ -233,28 +232,28 @@ void actual_shit()
 }
 
 
-int main()
+int fmain()
 {
 	
-	actual_shit();
-	return 0;
+	//actual_shit();
+	//return 0;
 
 	//checkers::state turn = checkers::state::BLACK;
 	
-	const char initial[] =
-		". . . . . x . x"
-		". . x . x . . ."
-		". x . x . x . x"
-		"o . x . . . x ."
-		". o . o . x . o"
-		"o . o . o . . ."
-		". . . o . o . o"
-		". . . . . . o .";
-	std::string position(initial);
-	checkers::board board{};
-	testing::play_itself(board, checkers::state::RED);
+	//const char initial[] =
+	//	". . . . . x . x"
+	//	"x . x . x . . ."
+	//	". x . x . x . x"
+	//	"x . x . x . o ."
+	//	". . . o . . . o"
+	//	"o . o . o . o ."
+	//	". o . o . . . o"
+	//	". . o . o . . .";
+	//std::string position(initial);
+	//checkers::board board{};
+	//testing::play_itself(board, checkers::state::RED);
 	//testing::explore_moves(board, checkers::state::RED);
-	//testing::analyze(board, checkers::state::RED);
+	//testing::analyze(board, checkers::state::BLACK);
 	return 0;
 
 

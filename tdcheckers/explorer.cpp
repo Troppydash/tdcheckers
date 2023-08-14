@@ -30,7 +30,8 @@ struct evaluate_extra
 
 
 // helper function to get the sign of the function
-template <typename T> int sgn(T val) {
+template <typename T> 
+int sgn(T val) {
 	return (T(0) < val) - (val < T(0));
 }
 
@@ -137,16 +138,16 @@ static float heuristic(
 		}
 		else
 		{
-			kingvalue = 1.0f;
-			if (pieces < 14)
+			/*kingvalue = 1.0f;
+			if (pieces < 14)*/
 			{
 				if ((player == checkers::state::RED) && isplayer || (player == checkers::state::BLACK && !isplayer))
 				{
-					kingvalue = (endweights[i] + 1.0f) / 3.0f;
+					kingvalue = (endweights[i] + 1.0f) / 4.0f;
 				}
 				else
 				{
-					kingvalue = (endweights[64 - i - 1] + 1.0f) / 3.0f;
+					kingvalue = (endweights[64 - i - 1] + 1.0f) / 4.0f;
 				}
 			}
 
@@ -173,7 +174,8 @@ static std::vector<float> weight_moves(
 	const std::vector<checkers::move> &moves,
 	checkers::state turn,
 	checkers::state player,
-	evaluate_extra &extra
+	evaluate_extra &extra,
+	bool maxing
 )
 {
 	std::vector<float> out;
@@ -181,11 +183,28 @@ static std::vector<float> weight_moves(
 
 	checkers::state other = checkers::state_flip(turn);
 
-
+	extra.lock.lock();
 	for (auto &move : moves)
 	{
-		out.push_back(heuristic(board.perform_move(move, turn), other, player));
+		checkers::board newboard = board.perform_move(move, turn);
+	
+		float caps = move.captures.size();
+		if (!maxing)
+			caps *= -1.0f;
+
+		// top move bonus
+		uint64_t hash = checkers::board::hash_function()(newboard) ^ std::hash<bool>()(other == player);
+		if (extra.transposition.count(hash) == 0)
+		{
+			float heur = heuristic(newboard, other, player);
+			out.push_back(0.8f * heur + caps);
+		}
+		else
+		{
+			out.push_back(extra.transposition[hash].value + caps);
+		}
 	}
+	extra.lock.unlock();
 
 	return out;
 }
@@ -268,6 +287,7 @@ static float evaluate(
 		}
 	}
 
+
 	if (depth_remaining == 0)
 	{
 		float score = heuristic(board, turn, player);
@@ -287,7 +307,7 @@ static float evaluate(
 	if (!TOP)
 	{
 		// sort moves based on weights, desc
-		auto weights = weight_moves(board, moves, turn, player, extra);
+		auto weights = weight_moves(board, moves, turn, player, extra, maxing);
 		std::sort(indices.begin(), indices.end(), [&](int a, int b)
 		{
 			if (maxing)
@@ -297,8 +317,6 @@ static float evaluate(
 			return weights[a] < weights[b];
 		});
 	}
-
-
 
 	float value;
 	if (maxing)
@@ -312,17 +330,12 @@ static float evaluate(
 			auto eval = [&](int i)
 			{
 				auto &move = moves[i];
-				int newdepth = depth_remaining - 1;
-				if (move.captures.size() != 0 && newdepth == 0)
-				{
-					newdepth = 1;
-				}
-
+			
 				float newvalue = evaluate<false>(
 					board.perform_move(move, turn),
 					nextturn,
 					player,
-					newdepth,
+					depth_remaining - 1,
 					alpha,
 					beta,
 					false,
@@ -360,17 +373,12 @@ static float evaluate(
 			for (auto i : indices)
 			{
 				auto &move = moves[i];
-				int newdepth = depth_remaining - 1;
-				if (move.captures.size() != 0 && newdepth == 0)
-				{
-					newdepth = 1;
-				}
 
 				float newvalue = evaluate<false>(
 					board.perform_move(move, turn),
 					nextturn,
 					player,
-					newdepth,
+					depth_remaining - 1,
 					a,
 					beta,
 					false,
@@ -393,17 +401,17 @@ static float evaluate(
 		for (auto i : indices)
 		{
 			auto &move = moves[i];
-			int newdepth = depth_remaining - 1;
+			/*int newdepth = depth_remaining - 1;
 			if (move.captures.size() > 0 && newdepth == 0)
 			{
 				newdepth = 1;
-			}
+			}*/
 
 			float newvalue = evaluate<false>(
 				board.perform_move(move, turn),
 				nextturn,
 				player,
-				newdepth,
+				depth_remaining - 1,
 				alpha,
 				b,
 				true,
@@ -464,6 +472,53 @@ static float evaluate(
 	return value;
 }
 
+// TODO! Fix this shit
+static float MTDF(
+	// the current board state
+	checkers::board board,
+	// the turn
+	checkers::state turn,
+	// the player to compute score against
+	checkers::state player,
+	// depth search remaining
+	int depth_remaining,
+	// extra info
+	evaluate_extra &extra,
+	float best
+)
+{
+	float g = best;
+	float upperbound = 1e9;
+	float lowerbound = -1e9;
+	while (lowerbound < upperbound)
+	{
+		float beta;
+		if (g == lowerbound)
+			beta = g + 1;
+		else
+			beta = g;
+
+		g = evaluate<true>(
+			board,
+			turn,
+			player,
+			depth_remaining,
+			beta - 1,
+			beta,
+			true,
+			extra,
+			board.compute_moves(turn)
+		);
+
+		if (g < beta)
+			upperbound = g;
+		else
+			lowerbound = g;
+	}
+
+	return g;
+}
+
 
 void explorer::optimizer::compute_score(checkers::state turn, bool verbose)
 {
@@ -503,7 +558,6 @@ void explorer::optimizer::compute_score(checkers::state turn, bool verbose)
 		0,
 		std::nullopt
 	};
-	m_score = 0;  // reset score
 
 	// compute moves and other temporary constants
 	auto moves = m_board.compute_moves(turn);
@@ -513,14 +567,22 @@ void explorer::optimizer::compute_score(checkers::state turn, bool verbose)
 	if (verbose)
 		std::cout << "---- Depths ----" << std::endl;
 
-
+	// reset score (do not use the last iter's it will break)
+	m_score = 0;
 	// iterative deepining
-	int startdepth = 0;
-	int enddepth = 16;
+	int startdepth = 1;
+	int enddepth = 50;
 	for (int depth = startdepth; depth < enddepth; ++depth)
 	{
 		extra.exploration = 0;
-
+		/*m_score = MTDF(
+			m_board,
+			turn,
+			m_player,
+			depth,
+			extra,
+			m_score
+		);*/
 		m_score = evaluate<true>(
 			m_board,
 			turn,
@@ -610,8 +672,11 @@ void explorer::optimizer::compute_score(checkers::state turn, bool verbose)
 			std::cout << "\n\n";
 
 		// exit when the score is sure
-		if (abs(m_score) > 50.0f || extra.exploration > 4000000)
+		if (abs(m_score) > 50.0f || extra.exploration > 20000000)
+		{
+			std::cout << "Cutoff depth " << depth << "\n";
 			break;
+		}
 	}
 
 

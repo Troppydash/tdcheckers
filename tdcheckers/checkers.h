@@ -177,6 +177,8 @@ namespace checkers
 				size_t h1 = std::hash<uint64_t>()(board.m_red | (board.m_black >> 1));
 				size_t h3 = std::hash<uint64_t>()(board.m_kings);
 
+				size_t hashed = std::hash<std::string>()("hello");
+
 				return h1 ^ (h3 << 1);
 			}
 		};
