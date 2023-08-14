@@ -595,7 +595,7 @@ void explorer::optimizer::compute_score(checkers::state turn, bool verbose)
 			m_board.compute_moves(turn)
 		);
 
-		if (verbose)
+		if (verbose && depth >= 8)
 		{
 			std::cout << "At " << depth << ", score = " << m_score << std::endl;
 			std::cout << "  " << extra.exploration << std::endl;
@@ -631,7 +631,7 @@ void explorer::optimizer::compute_score(checkers::state turn, bool verbose)
 				if (best == -1)
 					break;
 
-				if (verbose)
+				if (verbose && depth >= 8)
 					std::cout << moves[best].str() << " ";
 
 				b = b.perform_move(moves[best], t);
@@ -659,7 +659,7 @@ void explorer::optimizer::compute_score(checkers::state turn, bool verbose)
 				if (best == -1)
 					break;
 
-				if (verbose)
+				if (verbose && depth >= 8)
 					std::cout << moves[best].str() << " ";
 
 				b = b.perform_move(moves[best], t);
@@ -668,11 +668,11 @@ void explorer::optimizer::compute_score(checkers::state turn, bool verbose)
 			}
 		}
 
-		if (verbose)
+		if (verbose && depth >= 8)
 			std::cout << "\n\n";
 
 		// exit when the score is sure
-		if (abs(m_score) > 50.0f || extra.exploration > 20000000)
+		if (abs(m_score) > 50.0f || extra.exploration > 1000000)
 		{
 			std::cout << "Cutoff depth " << depth << "\n";
 			break;

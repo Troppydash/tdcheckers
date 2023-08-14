@@ -13,10 +13,45 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Source Files\extern">
+      <UniqueIdentifier>{b48b4ebf-00cf-441a-aa31-f9f628c9ffe1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\tdlib">
+      <UniqueIdentifier>{891f3770-84d3-4bb7-b87c-bde62a64c0ad}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="glad.c">
+      <Filter>Source Files\extern</Filter>
+    </ClCompile>
+    <ClCompile Include="board.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="image.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="tdmesh.h">
+      <Filter>Header Files\tdlib</Filter>
+    </ClInclude>
+    <ClInclude Include="tdshader.h">
+      <Filter>Header Files\tdlib</Filter>
+    </ClInclude>
+    <ClInclude Include="tdtexture.h">
+      <Filter>Header Files\tdlib</Filter>
+    </ClInclude>
+    <ClInclude Include="tdwindow.h">
+      <Filter>Header Files\tdlib</Filter>
+    </ClInclude>
+    <ClInclude Include="board.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="tdobservable.h">
+      <Filter>Header Files\tdlib</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
