@@ -66,6 +66,23 @@ namespace td
 			}
 		}
 
+		template <unsigned int N = 3>
+		void set_uniform_vector(const char *name, const std::vector<float> &data)
+		{
+			int location = find_uniform(name);
+
+			use();
+			switch (N)
+			{
+			case 3:
+				glUniform3f(location, data[0], data[1], data[2]);
+				break;
+			default:
+				std::cout << "Shader: Unable to set the uniform of a vector with size outside [1, 4]" << std::endl;
+				throw std::runtime_error("");
+			}
+		}
+
 	protected:
 		int find_uniform(const char *name) const
 		{

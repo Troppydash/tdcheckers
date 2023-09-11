@@ -120,13 +120,21 @@ namespace checkers
 			return true;
 		}
 
+		// whether the other move is a subset of this move
+		bool subset_equal(const move &other) const;
+
 		// returns the string representation of the move
 		std::string repr() const;
 
 		// returns the shorthand string representation of the move
 		std::string str() const;
-	};
 
+		// return the list of landing spots (excluding the first one)
+		std::vector<uint64_t> landings() const;
+
+		// append a landing to the move
+		void add_landing(uint64_t position);
+	};
 
 
 
@@ -145,6 +153,9 @@ namespace checkers
 
 		// moves constructor from initial positions
 		board(std::vector<move> &moves);
+
+		// resets the board
+		void reset();
 
 		// copy the state of another board to self
 		void copy(const board &other);
@@ -174,10 +185,8 @@ namespace checkers
 			// a functor representing the hash function of our board
 			size_t operator()(const board &board) const
 			{
-				size_t h1 = std::hash<uint64_t>()(board.m_red | (board.m_black >> 1));
+				size_t h1 = board.m_red | (board.m_black >> 1);
 				size_t h3 = std::hash<uint64_t>()(board.m_kings);
-
-				size_t hashed = std::hash<std::string>()("hello");
 
 				return h1 ^ (h3 << 1);
 			}

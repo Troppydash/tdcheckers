@@ -142,6 +142,30 @@ checkers::move::move(std::string text)
 	}
 }
 
+bool checkers::move::subset_equal(const move &other) const
+{
+	// the origin must be the same
+	if (from != other.from)
+		return false;
+
+	// cannot be a subset, for the other move has more captures
+	if (other.captures.size() > captures.size())
+		return false;
+
+	auto selflandings = landings();
+	auto otherlandings = other.landings();
+
+	for (size_t i = 0; i < otherlandings.size(); ++i)
+	{
+		if (selflandings[i] != otherlandings[i])
+			return false;
+	}
+
+	return true;
+
+
+}
+
 // returns the string representation of the move
 std::string checkers::move::repr() const
 {
@@ -190,6 +214,83 @@ std::string checkers::move::str() const
 	out += t.second + '1';
 
 	return out;
+}
+
+std::vector<uint64_t> checkers::move::landings() const
+{
+	std::vector<uint64_t> landings;
+
+	// add landing spots for each captures
+	uint64_t spot = from;
+	for (auto next : captures)
+	{
+		// TODO: THis shit is cracked, improve my move finding algorithm
+		// with this * and / extension
+		if (spot < next)
+		{
+			uint64_t offset = next / spot;
+			spot = next * offset;
+		}
+		else
+		{
+			uint64_t offset = spot / next;
+			spot = next / offset;
+		}
+
+		landings.push_back(spot);
+	}
+
+	// if no captures, add the endpoint
+	if (captures.empty() && to != 0ull)
+		landings.push_back(to);
+
+	return landings;
+}
+
+void checkers::move::add_landing(uint64_t position)
+{
+
+	uint64_t start;
+	if (captures.size() == 0)
+		start = from;
+	else
+		start = to;
+
+	uint64_t diag1 = (1ull << (G_CHECKERS_WIDTH - 1));
+	uint64_t diag2 = (1ull << (G_CHECKERS_WIDTH + 1));
+	if (position > start)
+	{
+		uint64_t offset = position / start;
+		if (offset > diag2)
+		{
+			if (offset == diag1*diag1)
+			{
+				captures.push_back(start * diag1);
+			}
+			else
+			{
+				captures.push_back(start * diag2);
+			}
+		}
+		to = position;
+	}
+	else
+	{
+		uint64_t offset = start / position;
+		if (offset > diag2)
+		{
+			if (offset == diag1 * diag1)
+			{
+				captures.push_back(start / diag1);
+			}
+			else
+			{
+				captures.push_back(start / diag2);
+			}
+		}
+		to = position;
+	}
+
 }
 
 
@@ -296,14 +397,7 @@ static void checkers_compute_jumps(
 // default constructor
 checkers::board::board()
 {
-	// red is from row [last-2, last]
-	constexpr uint64_t red = make_checkers_bitboard(G_CHECKERS_WIDTH - 1 - 2, G_CHECKERS_WIDTH - 1);
-	// black is from row [0, 2]
-	constexpr uint64_t black = make_checkers_bitboard(0, 2);
-
-	m_red = red;
-	m_black = black;
-	m_kings = 0ull;
+	reset();
 }
 
 // copy constructor
@@ -384,6 +478,18 @@ checkers::board::board(std::vector<move> &moves)
 		// copy board
 		copy(newboard);
 	}
+}
+
+void checkers::board::reset()
+{
+	// red is from row [last-2, last]
+	constexpr uint64_t red = make_checkers_bitboard(G_CHECKERS_WIDTH - 1 - 2, G_CHECKERS_WIDTH - 1);
+	// black is from row [0, 2]
+	constexpr uint64_t black = make_checkers_bitboard(0, 2);
+
+	m_red = red;
+	m_black = black;
+	m_kings = 0ull;
 }
 
 // copy the state of another board to self
@@ -583,15 +689,17 @@ checkers::board checkers::board::perform_move(const checkers::move &move, state 
 		std::cout << "Fuck" << std::endl;
 	}
 
-
 	// move player piece
 	player &= ~move.from;
 	player |= move.to;
 
+	// is king if moving as a king, or entering a promotion square
+	bool isking = (m_kings & move.from) != 0 || (move.to & promotion) != 0;
+
 	// remove king
 	uint64_t king = m_kings & (~move.from);
 	// add king if became king
-	if (move.king)
+	if (isking)
 		king |= move.to;
 
 

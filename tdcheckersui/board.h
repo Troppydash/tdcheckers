@@ -10,6 +10,7 @@
 #include <glm/glm.hpp>
 
 #include <mutex>
+#include <queue>
 
 namespace gui
 {
@@ -26,7 +27,21 @@ namespace gui
 
 		void end() override;
 
+		void restart_game();
+
+		void finish_game();
+
+	protected:
+		// convert a viewport/screen coordinate to a world coordinate
 		glm::vec2 screen_to_world(const glm::vec2 &screen) const;
+
+		// make a move
+		void perform_move();
+
+		// highlight the piece and available moves for the selected piece
+		void highlight_selection();
+
+		void unhighlight_all();
 
 	private:
 		// shaders
@@ -48,14 +63,32 @@ namespace gui
 		checkers::board m_board;
 		std::mutex m_boardmutex;
 
-		// squares highlighted & selected
+		// squares highlighted & selected & captured
 		uint64_t m_highlights;
 		uint64_t m_selected;
+		uint64_t m_captures;
 
-		// TODO: player input system
+	private:
+		// representing the board input state
+		enum class input_state
+		{
+			VIEW,
+			SELECTING,
+			MOVING,
+		};
 
+		// represent the board state
+		struct board_state
+		{
+			checkers::state turn;
+			input_state action;
+			checkers::move partial_move;
+		};
+		
+		board_state m_state;
 
-
+		// represent an action queue of left clicks
+		std::queue<std::pair<double, double>> m_action_clicks;
 
 		// evaluation hook
 		std::thread m_eval;

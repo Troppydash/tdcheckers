@@ -18,6 +18,8 @@ int main()
 
 	window.start();
 
+	board.restart_game();
+
 	// render loop
 	window.main();
 

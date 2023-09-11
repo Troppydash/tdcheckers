@@ -5,9 +5,21 @@ out vec4 color;
 
 // state = 0 means red, = 1 means black
 uniform float state;
+// 0 means no, 1 means yes
+uniform float king;
 
 // for circle
 in vec2 coords;
+
+float circle(vec2 coord, float radius)
+{
+    return sqrt(abs((coord.x * coord.x + coord.y * coord.y) - radius * radius));
+}
+
+float dist(vec2 coord, float radius)
+{
+    return (coord.x * coord.x + coord.y * coord.y) - radius * radius;
+}
 
 void main()
 {
@@ -16,18 +28,30 @@ void main()
     vec3 piececolor = state * black + (1-state) * red;
 
     float E = 2.718281828;
-    float c = 20000.0;
-    // compute closeness
+    float c = 100.0;
     float radius = 0.36;
-    float closeness = (coords.x * coords.x + coords.y * coords.y) - radius * radius;
-    if (closeness < 0.0)
+
+    // create piece shape
+    float closeness = dist(coords, radius);
+    float alpha = 1.0;
+    if (closeness > 0.0)
     {
-        closeness = 1.0;
+        float circ = circle(coords, radius);
+        alpha = pow(E, -c * circ*circ);
+    }
+
+    // create king ring
+    float c1 = circle(coords, radius);
+    float ring = (pow(E, -c/3.0 * c1*c1));
+
+    if (king == 0.0)
+    {
+        color = vec4(piececolor, alpha);
     }
     else
     {
-        closeness = pow(E, -c * closeness*closeness);
-    }
+        vec3 mixed = mix(piececolor, vec3(0.0, 1.0, 0.0), ring);
+        color = vec4(mixed, alpha);
 
-    color = vec4(piececolor, closeness);
+    }
 }
