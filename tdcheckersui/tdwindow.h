@@ -58,10 +58,12 @@ namespace td
 
 		void start()
 		{
+			// glfw hints
 			glfwInit();
 			glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 			glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 			glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+			glfwWindowHint(GLFW_SAMPLES, 4);
 
 			// create window
 			m_window = glfwCreateWindow(
@@ -73,12 +75,22 @@ namespace td
 			);
 			glfwMakeContextCurrent(m_window);
 
+			// init glad
 			gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
 
+			// opengl setup
 			glViewport(0, 0, m_settings.width, m_settings.height);
+
+			// v-sync
 			glfwSwapInterval(1);
+
+			// alpha blending
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+			// antialiasing
+			glEnable(GL_MULTISAMPLE);
+
 
 			for (auto &object : m_objects)
 			{

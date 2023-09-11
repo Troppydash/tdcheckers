@@ -26,7 +26,15 @@ static void map_bits(uint64_t bits, std::function<void(int, int)> &&fn)
 	}
 }
 
-// convert a row and col index into a model transform
+/**
+ * @brief Converts a row and column index into a model transform matrix.
+ * 
+ * The model must be anchored (0, 0) on the bottom left.
+ * 
+ * @param row 
+ * @param col 
+ * @return 
+*/
 static glm::mat4 make_cell_mat(int row, int col)
 {
 	// move the box to the place
@@ -40,7 +48,15 @@ static glm::mat4 make_cell_mat(int row, int col)
 	return world;
 }
 
-// convert a model coordinate into the cell coordinate
+// convert a world coordinate into the cell coordinate
+
+/**
+ * @brief Converts a centered world coordinate to cell coordinates.
+ * 
+ * @param x 
+ * @param y 
+ * @return 
+*/
 static int make_cell_coord(double x, double y)
 {
 	int xcoord = round((x + 0.5) * 8 - 0.5);
@@ -50,14 +66,14 @@ static int make_cell_coord(double x, double y)
 }
 
 
-
 gui::checkers_board::checkers_board()
-	: m_highlights(0ull), m_matpersp(1.0f), m_matworld(1.0f)
+	: m_highlights(0ull), m_selected(0ull), m_matpersp(1.0f), m_matworld(1.0f)
 {
 }
 
 void gui::checkers_board::start(td::window &window)
 {
+	// mesh vertices, VBO and EBO
 	std::vector<float> square{
 		-0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
 			0.5f, 0.5f, 0.0f, 1.0f, 1.0f,
@@ -83,17 +99,21 @@ void gui::checkers_board::start(td::window &window)
 
 
 	// load matrices
+	// orthonormal projection at left=-width/2, right=+width/2, top=0.5, bottom=-0.5
 	float relwidth = static_cast<float>(window.get_settings().width) / window.get_settings().height;
 	m_matpersp = glm::ortho(-relwidth / 2, relwidth / 2, -0.5f, 0.5f);
 
+	// world = I
 	m_matworld = glm::mat4(1.0f);
-	//m_matworld = glm::translate(m_matworld, { 0.5f, 0.5f, 0.0f });
 
-	m_boardshader.set_uniform_matrix<4>("perspective", glm::value_ptr(m_matpersp));
-	m_boardshader.set_uniform_matrix<4>("world", glm::value_ptr(m_matworld));
+	m_boardshader.set_uniform_matrix("perspective", glm::value_ptr(m_matpersp));
+	m_boardshader.set_uniform_matrix("world", glm::value_ptr(m_matworld));
 
 	m_highlightshader.set_uniform_matrix("perspective", glm::value_ptr(m_matpersp));
+	m_highlightshader.set_uniform_matrix("world", glm::value_ptr(m_matworld));
+
 	m_pieceshader.set_uniform_matrix("perspective", glm::value_ptr(m_matpersp));
+	m_pieceshader.set_uniform_matrix("world", glm::value_ptr(m_matworld));
 
 	m_board = checkers::board();
 	m_window = &window;
@@ -102,7 +122,6 @@ void gui::checkers_board::start(td::window &window)
 	m_window->m_inputs.cursor_clicked.observe([&](auto a, const std::pair<double, double> &pos)
 	{
 		glm::vec2 location = screen_to_world({ pos.first, pos.second });
-		//std::cout << location.x << ", " << location.y << "\n";
 
 		// toggle highlight
 		int cell = make_cell_coord(location.x, location.y);
@@ -120,44 +139,44 @@ void gui::checkers_board::update(float dt)
 	m_gamestarted = true;
 
 	// engines
-	std::thread eval([&]()
-	{
-		checkers::state turn = checkers::state::RED;
-		explorer::optimizer optimizer_red(m_board, checkers::state::RED);
-		explorer::optimizer optimizer_black(m_board, checkers::state::BLACK);
+	//std::thread eval([&]()
+	//{
+	//	checkers::state turn = checkers::state::RED;
+	//	explorer::optimizer optimizer_red(m_board, checkers::state::RED);
+	//	explorer::optimizer optimizer_black(m_board, checkers::state::BLACK);
 
-		while (true)
-		{
-			if (m_board.get_state(turn) != checkers::state::NONE)
-			{
-				return;
-			}
+	//	while (true)
+	//	{
+	//		if (m_board.get_state(turn) != checkers::state::NONE)
+	//		{
+	//			return;
+	//		}
 
-			// compute move
-			std::optional<checkers::move> best;
-			if (turn == checkers::state::RED)
-			{
-				optimizer_red.update_board(m_board);
-				optimizer_red.compute_score(turn, true);
-				best = optimizer_red.get_move();
-			}
-			else
-			{
-				optimizer_black.update_board(m_board);
-				optimizer_black.compute_score(turn, true);
-				best = optimizer_black.get_move();
-			}
-	
-			m_boardmutex.lock();
-			m_board = m_board.perform_move(best.value(), turn);
-			m_highlights = best.value().from ^ best.value().to;
-			m_boardmutex.unlock();
+	//		// compute move
+	//		std::optional<checkers::move> best;
+	//		if (turn == checkers::state::RED)
+	//		{
+	//			optimizer_red.update_board(m_board);
+	//			optimizer_red.compute_score(turn, true);
+	//			best = optimizer_red.get_move();
+	//		}
+	//		else
+	//		{
+	//			optimizer_black.update_board(m_board);
+	//			optimizer_black.compute_score(turn, true);
+	//			best = optimizer_black.get_move();
+	//		}
+	//
+	//		m_boardmutex.lock();
+	//		m_board = m_board.perform_move(best.value(), turn);
+	//		m_highlights = best.value().from ^ best.value().to;
+	//		m_boardmutex.unlock();
 
-			turn = checkers::state_flip(turn);
-		}
-	});
+	//		turn = checkers::state_flip(turn);
+	//	}
+	//});
 
-	m_eval = std::move(eval);
+	//m_eval = std::move(eval);
 }
 
 void gui::checkers_board::render()
@@ -166,9 +185,14 @@ void gui::checkers_board::render()
 	m_squaremesh.render();
 
 	// draw highlights
-	// for each bit
 	m_boardmutex.lock();
-	map_bits(m_highlights, [&](int row, int col)
+	uint64_t highlights = m_highlights;
+	uint64_t redpieces = m_board.get_player(checkers::state::RED);
+	uint64_t blackpieces = m_board.get_player(checkers::state::BLACK);
+	m_boardmutex.unlock();
+
+
+	map_bits(highlights, [&](int row, int col)
 	{
 		// move the box to the place
 		glm::mat4 world = make_cell_mat(row, col);
@@ -179,35 +203,34 @@ void gui::checkers_board::render()
 		m_squaremesh.render();
 	});
 
-
+	// draw red pieces
 	m_pieceshader.set_uniform_scalar("state", 0.0f);
-	map_bits(m_board.get_player(checkers::state::RED), [&](int row, int col)
+	map_bits(redpieces, [&](int row, int col)
 	{
 		glm::mat4 world = make_cell_mat(row, col);
-
 		m_pieceshader.set_uniform_matrix("world", glm::value_ptr(world));
-
 		m_pieceshader.use();
 		m_squaremesh.render();
 	});
 
 
+	// draw black pieces
 	m_pieceshader.set_uniform_scalar("state", 1.0f);
-	map_bits(m_board.get_player(checkers::state::BLACK), [&](int row, int col)
+	map_bits(blackpieces, [&](int row, int col)
 	{
 		glm::mat4 world = make_cell_mat(row, col);
-
 		m_pieceshader.set_uniform_matrix("world", glm::value_ptr(world));
-
 		m_pieceshader.use();
 		m_squaremesh.render();
 	});
-	m_boardmutex.unlock();
 }
 
 void gui::checkers_board::end()
 {
 	m_boardshader.end();
+	m_highlightshader.end();
+	m_pieceshader.end();
+
 	m_squaremesh.end();
 }
 
@@ -223,7 +246,7 @@ glm::vec2 gui::checkers_board::screen_to_world(const glm::vec2 &screen) const
 	};
 
 	// invert perspective matrix
-	glm::vec4 world = glm::inverse(m_matpersp) * glm::vec4{trans.x, trans.y, 0.0f, 1.0f};
+	glm::vec4 world = glm::inverse(m_matpersp) * glm::vec4{ trans.x, trans.y, 0.0f, 1.0f };
 
 	return { world.x, world.y };
 }

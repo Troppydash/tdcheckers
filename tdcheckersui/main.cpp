@@ -21,7 +21,6 @@ int main()
 	// render loop
 	window.main();
 
-
 	// cleanup
 	window.end();
 	

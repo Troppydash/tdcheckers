@@ -26,31 +26,39 @@ namespace gui
 
 		void end() override;
 
-
-
 		glm::vec2 screen_to_world(const glm::vec2 &screen) const;
 
-
 	private:
+		// shaders
 		td::graphics_shader m_boardshader;
 		td::graphics_shader m_highlightshader;
 		td::graphics_shader m_pieceshader;
 
+		// mesh
 		td::mesh m_squaremesh;
 
+		// for positioning the board
 		glm::mat4 m_matpersp;
 		glm::mat4 m_matworld;
 
-		td::window *m_window;
+		// window reference
+		td::window *m_window = nullptr;
 	protected:
 		// board stuff
 		checkers::board m_board;
 		std::mutex m_boardmutex;
-		std::thread m_eval;
 
-		bool m_gamestarted = false;
-
+		// squares highlighted & selected
 		uint64_t m_highlights;
+		uint64_t m_selected;
 
+		// TODO: player input system
+
+
+
+
+		// evaluation hook
+		std::thread m_eval;
+		bool m_gamestarted = false;
 	};
 };

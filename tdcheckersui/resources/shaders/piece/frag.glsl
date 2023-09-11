@@ -11,14 +11,23 @@ in vec2 coords;
 
 void main()
 {
-    vec4 red = vec4(0.8, 0.0, 0.0, 1.0);
-    vec4 black = vec4(0.2, 0.2, 0.2, 1.0);
+    vec3 red = vec3(0.8, 0.0, 0.0);
+    vec3 black = vec3(0.2, 0.2, 0.2);
+    vec3 piececolor = state * black + (1-state) * red;
 
+    float E = 2.718281828;
+    float c = 20000.0;
+    // compute closeness
     float radius = 0.36;
-    if ((coords.x * coords.x + coords.y * coords.y) > radius * radius)
+    float closeness = (coords.x * coords.x + coords.y * coords.y) - radius * radius;
+    if (closeness < 0.0)
     {
-        discard;
+        closeness = 1.0;
+    }
+    else
+    {
+        closeness = pow(E, -c * closeness*closeness);
     }
 
-    color = state * black + (1-state) * red;
+    color = vec4(piececolor, closeness);
 }
