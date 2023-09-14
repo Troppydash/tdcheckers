@@ -82,11 +82,12 @@ namespace checkers
 		std::vector<uint64_t> captures;
 
 		// whether the piece became a king (not if it was a king)
-		bool king;
+		// this is deprecated
+		//bool king;
 
 		// default constructor
 		move()
-			: from(0ull), to(0ull), captures({}), king(false)
+			: from(0ull), to(0ull), captures({})
 		{}
 
 
@@ -105,8 +106,8 @@ namespace checkers
 			if (to != other.to)
 				return false;
 
-			if (king != other.king)
-				return false;
+		/*	if (king != other.king)
+				return false;*/
 
 			if (captures.size() != other.captures.size())
 				return false;

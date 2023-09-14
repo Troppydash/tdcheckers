@@ -30,7 +30,7 @@ struct evaluate_extra
 
 
 // helper function to get the sign of the function
-template <typename T> 
+template <typename T>
 int sgn(T val) {
 	return (T(0) < val) - (val < T(0));
 }
@@ -187,7 +187,7 @@ static std::vector<float> weight_moves(
 	for (auto &move : moves)
 	{
 		checkers::board newboard = board.perform_move(move, turn);
-	
+
 		float caps = move.captures.size();
 		if (!maxing)
 			caps *= -1.0f;
@@ -265,7 +265,7 @@ static float evaluate(
 		}
 		extra.lock.unlock();
 	}
-	
+
 
 
 	std::vector<checkers::move> moves = std::move(precalc);
@@ -330,7 +330,7 @@ static float evaluate(
 			auto eval = [&](int i)
 			{
 				auto &move = moves[i];
-			
+
 				float newvalue = evaluate<false>(
 					board.perform_move(move, turn),
 					nextturn,
@@ -490,20 +490,16 @@ static float MTDF(
 	float g = best;
 	float upperbound = 1e9;
 	float lowerbound = -1e9;
-	while (lowerbound < upperbound)
+	while (lowerbound + 0.00001f < upperbound)
 	{
-		float beta;
-		if (g == lowerbound)
-			beta = g + 1;
-		else
-			beta = g;
-
+		float beta = std::max(g, lowerbound + 0.1f);
+		//std::cout << g << "," << lowerbound << "," << upperbound << std::endl;
 		g = evaluate<true>(
 			board,
 			turn,
 			player,
 			depth_remaining,
-			beta - 1,
+			beta - 1.0f,
 			beta,
 			true,
 			extra,
@@ -546,9 +542,9 @@ void explorer::optimizer::compute_score(checkers::state turn, bool verbose)
 	// the higher the |score|, the larger the advantage
 	// 0 is even
 
-	std::random_device dev;
+	/*std::random_device dev;
 	std::mt19937 rng(dev());
-	std::uniform_real_distribution<float> dist(0.0, 1.0);
+	std::uniform_real_distribution<float> dist(0.0, 1.0);*/
 
 
 	// set extra data
@@ -571,35 +567,42 @@ void explorer::optimizer::compute_score(checkers::state turn, bool verbose)
 	m_score = 0;
 	// iterative deepining
 	int startdepth = 1;
-	int enddepth = 50;
+	int enddepth = 16;
 	for (int depth = startdepth; depth < enddepth; ++depth)
 	{
 		extra.exploration = 0;
-		/*m_score = MTDF(
-			m_board,
-			turn,
-			m_player,
-			depth,
-			extra,
-			m_score
-		);*/
-		m_score = evaluate<true>(
-			m_board,
-			turn,
-			m_player,
-			depth,
-			-1e9,
-			1e9,
-			true,
-			extra,
-			m_board.compute_moves(turn)
-		);
+		//if (verbose)
+		//{
+		/*	m_score = MTDF(
+				m_board,
+				turn,
+				m_player,
+				depth,
+				extra,
+				m_score
+			);*/
+		//}
+		//else
+		{
+			m_score = evaluate<true>(
+				m_board,
+				turn,
+				m_player,
+				depth,
+				-1e9,
+				1e9,
+				true,
+				extra,
+				m_board.compute_moves(turn)
+			);
+		}
+
 
 		if (verbose && depth >= 8)
 		{
 			std::cout << "At " << depth << ", score = " << m_score << std::endl;
 			std::cout << "  " << extra.exploration << std::endl;
-			std::cout << "-- best line --" << std::endl;
+			//std::cout << "-- best line --" << std::endl;
 		}
 
 		// print wtf it is thinking, print the best line
@@ -672,7 +675,8 @@ void explorer::optimizer::compute_score(checkers::state turn, bool verbose)
 			std::cout << "\n\n";
 
 		// exit when the score is sure
-		if (abs(m_score) > 50.0f || extra.exploration > 500000)
+		int limit = 100000;
+		if (abs(m_score) > 50.0f || extra.exploration > limit)
 		{
 			std::cout << "Cutoff depth " << depth << "\n";
 			break;
@@ -689,9 +693,6 @@ void explorer::optimizer::compute_score(checkers::state turn, bool verbose)
 
 	m_best = extra.best;
 
-
-	int best = -1;
-	float score = -1e9;
 	for (int j = 0; j < moves.size(); ++j)
 	{
 		uint64_t hash = hashing(m_board.perform_move(moves[j], turn)) ^ std::hash<bool>()(false);
@@ -699,26 +700,11 @@ void explorer::optimizer::compute_score(checkers::state turn, bool verbose)
 			continue;
 
 		auto &data = extra.transposition[hash];
-		if (data.value > score || (dist(rng) < 0.3f && data.value == score))
-		{
-			score = data.value;
-			best = j;
-		}
-
 		if (verbose)
 			std::cout << moves[j].str() << " is " << data.value << std::endl;
 	}
 
 	return;
-
-	// if nothing found
-	if (best == -1)
-	{
-		std::cout << "no best move found?" << std::endl;
-		return;
-	}
-
-	m_best = std::optional<checkers::move>(moves[best]);
 }
 
 void explorer::optimizer::update_board(checkers::board newboard)

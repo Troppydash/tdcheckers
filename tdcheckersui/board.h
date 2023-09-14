@@ -43,6 +43,10 @@ namespace gui
 
 		void unhighlight_all();
 
+		void handle_player(const std::pair<double, double> &clicked);
+
+		void handle_computer();
+
 	private:
 		// shaders
 		td::graphics_shader m_boardshader;
@@ -90,8 +94,19 @@ namespace gui
 		// represent an action queue of left clicks
 		std::queue<std::pair<double, double>> m_action_clicks;
 
+	private:  // eval part
+		enum class board_type
+		{
+			PLAYER_PLAYER,
+			PLAYER_AI,
+			AI_AI
+		};
+
+		board_type m_type = board_type::AI_AI;
+
 		// evaluation hook
 		std::thread m_eval;
-		bool m_gamestarted = false;
+		std::atomic<bool> m_thinking;
+		bool m_eval_initialized = false;
 	};
 };

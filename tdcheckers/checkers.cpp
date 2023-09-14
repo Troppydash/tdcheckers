@@ -101,25 +101,26 @@ static std::pair<int, int> boardtocoord(uint64_t board)
 
 // default constructor
 checkers::move::move(uint64_t from, uint64_t to, std::vector<uint64_t> captures, bool king)
-	: from(from), to(to), captures(captures), king(king)
+	: from(from), to(to), captures(captures)
 {}
 
 // shorthand string constructor
 // this shit has no error checking
 checkers::move::move(std::string text)
 {
+	// this doens't work
+	return;
+
+
 	// has the format
 	// o:31,42
 	// o:31,x42,53
 
 	// parse initial
-	bool isking = text[0] == 'k';
-
 	int row = G_CHECKERS_WIDTH - (text[2] - '0');
 	int col = (text[3] - '0') - 1;
 
 	from = coordtoboard(row, col);
-	king = isking;
 	to = 0ull;  // temp value
 
 	int j = 4;
@@ -177,10 +178,10 @@ std::string checkers::move::repr() const
 	else
 		text += "o";
 
-	if (king)
+	/*if (king)
 		text += "k";
 	else
-		text += "o";
+		text += "o";*/
 
 	return text;
 }
@@ -189,12 +190,12 @@ std::string checkers::move::repr() const
 std::string checkers::move::str() const
 {
 	std::string out;
-	if (king)
+	/*if (king)
 		out += "k";
 	else
-		out += "o";
+		out += "o";*/
 
-	out += ":";
+	//out += ":";
 
 	std::pair<int, int> f = boardtocoord(from);
 	out += (G_CHECKERS_WIDTH - f.first) + '0';
@@ -249,7 +250,6 @@ std::vector<uint64_t> checkers::move::landings() const
 
 void checkers::move::add_landing(uint64_t position)
 {
-
 	uint64_t start;
 	if (captures.size() == 0)
 		start = from;

@@ -240,20 +240,20 @@ int fmain()
 
 	//checkers::state turn = checkers::state::BLACK;
 	
-	//const char initial[] =
-	//	". . . . . x . x"
-	//	"x . x . x . . ."
-	//	". x . x . x . x"
-	//	"x . x . x . o ."
-	//	". . . o . . . o"
-	//	"o . o . o . o ."
-	//	". o . o . . . o"
-	//	". . o . o . . .";
-	//std::string position(initial);
-	//checkers::board board{};
+	const char initial[] =
+		". . . . . . . ."
+		"x . x . x . . ."
+		". x . x . x . x"
+		"x . x . x . o ."
+		". . . o . . . ."
+		"o . o . o . o ."
+		". o . o . . . o"
+		". . o . . . . .";
+	std::string position(initial);
+	checkers::board board{position};
 	//testing::play_itself(board, checkers::state::RED);
 	//testing::explore_moves(board, checkers::state::RED);
-	//testing::analyze(board, checkers::state::BLACK);
+	testing::analyze(board, checkers::state::BLACK);
 	return 0;
 
 

@@ -147,101 +147,53 @@ void gui::checkers_board::start(td::window &window)
 
 void gui::checkers_board::update(float dt)
 {
-	// fetch action
-	if (m_action_clicks.empty())
+	if (m_board.get_state(m_state.turn) != checkers::state::NONE)
+	{
+		std::cout << "someone won!" << std::endl;
+		finish_game();
 		return;
+	}
 
-	std::pair<double, double> clicked = m_action_clicks.front();
-	m_action_clicks.pop();
-
-	// state machine
-	switch (m_state.action)
+	switch (m_type)
 	{
-	case input_state::SELECTING:
+	case gui::checkers_board::board_type::PLAYER_PLAYER:
 	{
-		glm::vec2 location = screen_to_world({ clicked.first, clicked.second });
-		int cell = make_cell_coord(location.x, location.y);
+		if (m_action_clicks.empty())
+			return;
 
-		// discard errornous inputs
-		if (!valid_cell(cell))
-			break;
+		std::pair<double, double> clicked = m_action_clicks.front();
+		m_action_clicks.pop();
 
-		uint64_t mask = 1ull << cell;
-		uint64_t piece_mask = m_board.get_player(m_state.turn);
-
-		// return if not clicking on your piece
-		if ((mask & piece_mask) == 0)
-			break;
-
-		// enter selection phase
-		m_selected = mask;
-
-		m_state.partial_move = checkers::move();
-		m_state.partial_move.from = mask;
-		if (mask & m_board.get_kings(m_state.turn))
-			m_state.partial_move.king = true;
-
-		m_state.action = input_state::MOVING;
-
-		// display possible moves
-		highlight_selection();
-
+		handle_player(clicked);
 		break;
 	}
 
-	case input_state::MOVING:
+
+	case gui::checkers_board::board_type::PLAYER_AI:
 	{
-		glm::vec2 location = screen_to_world({ clicked.first, clicked.second });
-		int cell = make_cell_coord(location.x, location.y);
-
-		// discard errornous inputs
-		if (!valid_cell(cell))
-			break;
-
-		uint64_t mask = 1ull << cell;
-
-		// if clicking on last move to confirm
-		if (mask == m_state.partial_move.to)
+		if (m_state.turn == checkers::state::BLACK)
 		{
-			perform_move();
-			unhighlight_all();
-			m_state.action = input_state::SELECTING;
-			break;
-		}
+			if (m_action_clicks.empty())
+				return;
 
-		// if outside of the selectable squares, return
-		if ((mask & m_highlights) == 0)
+			std::pair<double, double> clicked = m_action_clicks.front();
+			m_action_clicks.pop();
+			handle_player(clicked);
+		}
+		else if (m_state.turn == checkers::state::RED)
 		{
-			unhighlight_all();
-			m_state.action = input_state::SELECTING;
-			break;
+			handle_computer();
 		}
-
-		m_state.partial_move.add_landing(mask);
-		std::cout << m_state.partial_move.str() << std::endl;
-
-		// check if selecting a valid location (also multiple)
-		auto moves = m_board.compute_moves(m_state.turn);
-		std::vector<checkers::move> valid_moves;
-		for (auto &move : moves)
-		{
-			if (!move.subset_equal(m_state.partial_move))
-				continue;
-
-			valid_moves.push_back(move);
-		}
-
-		if (valid_moves.size() == 1)
-		{
-			perform_move();
-			unhighlight_all();
-			m_state.action = input_state::SELECTING;
-			break;
-		}
-
-		highlight_selection();
 		break;
 	}
+
+	case gui::checkers_board::board_type::AI_AI:
+		handle_computer();
+
+		break;
+
+	default:
+		break;
 	}
 
 
@@ -398,6 +350,12 @@ void gui::checkers_board::restart_game()
 void gui::checkers_board::finish_game()
 {
 	m_state = { checkers::state::NONE, input_state::VIEW };
+
+	if (m_eval_initialized)
+	{
+		m_eval_initialized = false;
+		m_eval.join();
+	}
 }
 
 glm::vec2 gui::checkers_board::screen_to_world(const glm::vec2 &screen) const
@@ -470,4 +428,135 @@ void gui::checkers_board::unhighlight_all()
 	m_highlights = 0ull;
 	m_captures = 0ull;
 	m_selected = 0ull;
+}
+
+void gui::checkers_board::handle_player(
+	const std::pair<double, double> &clicked
+)
+{
+	// state machine
+	switch (m_state.action)
+	{
+	case input_state::SELECTING:
+	{
+		glm::vec2 location = screen_to_world({ clicked.first, clicked.second });
+		int cell = make_cell_coord(location.x, location.y);
+
+		// discard errornous inputs
+		if (!valid_cell(cell))
+			break;
+
+		uint64_t mask = 1ull << cell;
+		uint64_t piece_mask = m_board.get_player(m_state.turn);
+
+		// return if not clicking on your piece
+		if ((mask & piece_mask) == 0)
+			break;
+
+		// enter selection phase
+		m_selected = mask;
+
+		m_state.partial_move = checkers::move();
+		m_state.partial_move.from = mask;
+	/*	if (mask & m_board.get_kings(m_state.turn))
+			m_state.partial_move.king = true;*/
+
+		m_state.action = input_state::MOVING;
+
+		// display possible moves
+		highlight_selection();
+
+		break;
+	}
+
+	case input_state::MOVING:
+	{
+		glm::vec2 location = screen_to_world({ clicked.first, clicked.second });
+		int cell = make_cell_coord(location.x, location.y);
+
+		// discard errornous inputs
+		if (!valid_cell(cell))
+			break;
+
+		uint64_t mask = 1ull << cell;
+
+		// if clicking on last move to confirm
+		if (mask == m_state.partial_move.to)
+		{
+			perform_move();
+			unhighlight_all();
+			m_state.action = input_state::SELECTING;
+			break;
+		}
+
+		// if outside of the selectable squares, return
+		if ((mask & m_highlights) == 0)
+		{
+			unhighlight_all();
+			m_state.action = input_state::SELECTING;
+			break;
+		}
+
+		m_state.partial_move.add_landing(mask);
+
+		// check if selecting a valid location (also multiple)
+		auto moves = m_board.compute_moves(m_state.turn);
+		std::vector<checkers::move> valid_moves;
+		for (auto &move : moves)
+		{
+			if (!move.subset_equal(m_state.partial_move))
+				continue;
+
+			valid_moves.push_back(move);
+		}
+
+		if (valid_moves.size() == 1)
+		{
+			perform_move();
+			unhighlight_all();
+			m_state.action = input_state::SELECTING;
+			break;
+		}
+
+		highlight_selection();
+		break;
+	}
+	}
+}
+
+void gui::checkers_board::handle_computer()
+{
+	// we start thinking now
+	m_thinking = true;
+
+	if (m_eval_initialized)
+		return;
+
+	// initialize main thread
+	m_eval_initialized = true;
+	m_eval = std::thread([&]()
+	{
+		while (m_eval_initialized)
+		{
+			if (!m_thinking)
+				continue;
+
+
+			checkers::state turn = m_state.turn;
+			explorer::optimizer optimizer(m_board, turn);
+
+			std::optional<checkers::move> best;
+			optimizer.update_board(m_board);
+			optimizer.compute_score(turn, true);
+			best = optimizer.get_move();
+
+			m_boardmutex.lock();
+			m_board = m_board.perform_move(best.value(), turn);
+			m_highlights = best.value().from ^ best.value().to;
+			m_state.turn = checkers::state_flip(m_state.turn);
+			m_boardmutex.unlock();
+
+			m_thinking = false;
+		}
+	});
 }
