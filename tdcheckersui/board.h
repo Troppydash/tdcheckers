@@ -76,8 +76,13 @@ namespace gui
 		// representing the board input state
 		enum class input_state
 		{
+			// viewing the board, no actions
 			VIEW,
+			// waiting for the computer, no actions
+			COMPUTER,
+			// waiting for a piece selection
 			SELECTING,
+			// waiting for a movement input
 			MOVING,
 		};
 
@@ -102,7 +107,7 @@ namespace gui
 			AI_AI
 		};
 
-		board_type m_type = board_type::AI_AI;
+		board_type m_type = board_type::PLAYER_AI;
 
 		// evaluation hook
 		std::thread m_eval;

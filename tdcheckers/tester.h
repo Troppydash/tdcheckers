@@ -24,4 +24,8 @@ namespace testing
 
 	// Analyze the board position given the turn
 	void analyze(checkers::board position, checkers::state turn);
+
+	// Matches
 };
+
+

@@ -234,12 +234,6 @@ void actual_shit()
 
 int fmain()
 {
-	
-	//actual_shit();
-	//return 0;
-
-	//checkers::state turn = checkers::state::BLACK;
-	
 	const char initial[] =
 		". . . . . . . ."
 		"x . x . x . . ."
@@ -251,34 +245,6 @@ int fmain()
 		". . o . . . . .";
 	std::string position(initial);
 	checkers::board board{position};
-	//testing::play_itself(board, checkers::state::RED);
-	//testing::explore_moves(board, checkers::state::RED);
 	testing::analyze(board, checkers::state::BLACK);
-	return 0;
-
-
-	/*test_eval();
-	return 0;*/
-
-
-
-	//testing::random_play();
-	//return 0;
-
-	//const char initial[] =
-	//	". O . . . . . ."
-	//	". . . . . . . ."
-	//	". . . . . . . ."
-	//	". . . . . . . ."
-	//	". . . . . . . ."
-	//	". . x . . . . ."
-	//	". . . o . . . ."
-	//	". . . . . . . .";
-	//std::string position(initial);
-	//checkers::board board{initial};
-	//testing::explore_moves(board, checkers::state::RED);
-	//return 0;
-
-	//playgame(board, checkers::state::RED);
 	return 0;
 }
