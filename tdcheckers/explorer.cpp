@@ -675,7 +675,7 @@ void explorer::optimizer::compute_score(checkers::state turn, bool verbose)
 			std::cout << "\n\n";
 
 		// exit when the score is sure
-		int limit = 200000;
+		int limit = 100000;
 		if (abs(m_score) > 100.0f || extra.exploration > limit)
 		{
 			std::cout << "Cutoff depth " << depth << "\n";

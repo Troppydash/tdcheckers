@@ -107,7 +107,7 @@ namespace gui
 			AI_AI
 		};
 
-		board_type m_type = board_type::PLAYER_AI;
+		board_type m_type = board_type::AI_AI;
 
 		// evaluation hook
 		std::thread m_eval;

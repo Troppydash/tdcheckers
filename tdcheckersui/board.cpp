@@ -171,7 +171,7 @@ void gui::checkers_board::update(float dt)
 
 	case gui::checkers_board::board_type::PLAYER_AI:
 	{
-		if (m_state.turn == checkers::state::BLACK)
+		if (m_state.turn == checkers::state::RED)
 		{
 			if (m_action_clicks.empty())
 				return;
@@ -180,7 +180,7 @@ void gui::checkers_board::update(float dt)
 			m_action_clicks.pop();
 			handle_player(clicked);
 		}
-		else if (m_state.turn == checkers::state::RED)
+		else if (m_state.turn == checkers::state::BLACK)
 		{
 			handle_computer();
 		}

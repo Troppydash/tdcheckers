@@ -134,13 +134,16 @@
   <ItemGroup>
     <ClCompile Include="checkers.cpp" />
     <ClCompile Include="explorer.cpp" />
+    <ClCompile Include="game.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="tester.cpp" />
     <ClCompile Include="uci.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="analyzer.h" />
     <ClInclude Include="checkers.h" />
     <ClInclude Include="explorer.h" />
+    <ClInclude Include="game.h" />
     <ClInclude Include="global.h" />
     <ClInclude Include="tester.h" />
     <ClInclude Include="uci.h" />
